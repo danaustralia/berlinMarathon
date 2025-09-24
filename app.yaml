@@ -1,5 +1,5 @@
-kind: wasmer.io/App.v0
 name: berlin-marathon
+app_id: da_K0DIkt5Ure6p
 owner: danaustralia
 package: '.'
-app_id: da_K0DIkt5Ure6p
+kind: wasmer.io/App.v0
