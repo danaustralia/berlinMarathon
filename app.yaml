@@ -1,0 +1,4 @@
+kind: wasmer.io/App.v0
+package: .
+name: berlin-marathon
+owner: username
