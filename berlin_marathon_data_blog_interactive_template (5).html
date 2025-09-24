@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Berlin Marathon — Data Highlights (Compact)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    .card{border-radius:1rem;box-shadow:0 8px 24px rgba(2,6,23,.06);background:#fff}
+    .grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem}
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <header class="mx-auto max-w-6xl px-6 py-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Berlin Marathon — Data Highlights</h1>
+      <p class="mt-2 max-w-2xl text-slate-600">Upload runners CSV (+ optional splits & mapping) and weather CSV to populate KPIs & charts.</p>
+      <p class="mt-1 text-sm text-slate-500">Expected columns (case‑insensitive): <span class="font-semibold">RunnerID</span>, <span class="font-semibold">Gender</span>, <span class="font-semibold">AgeGroup</span>, <span class="font-semibold">RaceStatus</span>, <span class="font-semibold">Halftime</span>, <span class="font-semibold">TimeTotal</span>, <span class="font-semibold">StartTimeNet</span>, and ideally chip point time‑of‑day fields like <em>5kmTimeOfDay</em> … <em>FinishTimeOfDay</em>.</p>
+      <div id="progress" class="mt-2 text-sm text-slate-500">No file loaded.</div>
+      <div id="progress-map" class="mt-1 text-xs text-slate-500">No mapping file.</div>
+      <div id="progress-weather" class="mt-1 text-xs text-slate-500">No weather file.</div>
+      <div id="progress-splits" class="mt-1 text-xs text-slate-500">No splits file.</div>
+    </div>
+    <div class="flex items-center gap-3">
+      <label for="csvFile" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">Upload CSV</label>
+      <input id="csvFile" type="file" accept=".csv" class="hidden" />
+      <label for="splitsFile" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">Upload Splits</label>
+      <input id="splitsFile" type="file" accept=".csv" class="hidden" />
+      <label for="mapFile" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">Upload Mapping</label>
+      <input id="mapFile" type="file" accept=".csv" class="hidden" />
+      <label for="weatherFile" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">Upload Weather</label>
+      <input id="weatherFile" type="file" accept=".csv" class="hidden" />
+    </div>
+  </header>
+
+  <section class="mx-auto max-w-6xl px-6 pb-4">
+    <div class="grid-cards">
+      <div class="card p-5"><p class="text-sm text-slate-500">Total runners</p><p id="kpi-total" class="mt-1 text-3xl font-semibold">—</p></div>
+      <div class="card p-5"><p class="text-sm text-slate-500">Finished</p><p id="kpi-finished" class="mt-1 text-3xl font-semibold">—</p></div>
+      <div class="card p-5"><p class="text-sm text-slate-500">Finish rate</p><p id="kpi-finish-rate" class="mt-1 text-3xl font-semibold">—</p></div>
+      <div class="card p-5"><p class="text-sm text-slate-500">Median finish</p><p id="kpi-median" class="mt-1 text-3xl font-semibold">—</p></div>
+      <div class="card p-5"><p class="text-sm text-slate-500">Under 4h</p><p id="kpi-under4" class="mt-1 text-3xl font-semibold">—</p></div>
+      <div class="card p-5"><p class="text-sm text-slate-500">BQ qualifiers</p><p id="kpi-bqcount" class="mt-1 text-3xl font-semibold">—</p></div>
+      <div class="card p-5"><p class="text-sm text-slate-500">BQ rate</p><p id="kpi-bqrate" class="mt-1 text-3xl font-semibold">—</p></div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 py-6 grid gap-6">
+    <div class="card p-6">
+      <h3 class="text-xl font-semibold mb-3">Finish time distribution (15‑min bins)</h3>
+      <canvas id="chart-time" height="110"></canvas>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card p-6"><h3 class="text-xl font-semibold mb-3">Race status</h3><canvas id="chart-status" height="100" style="max-width:230px;margin-inline:auto"></canvas></div>
+      <div class="card p-6"><h3 class="text-xl font-semibold mb-3">Gender share</h3><canvas id="chart-gender" height="100" style="max-width:230px;margin-inline:auto"></canvas></div>
+    </div>
+
+    <div class="card p-6"><h3 class="text-xl font-semibold mb-3">Start windows (30‑min bins)</h3><canvas id="chart-start" height="110"></canvas></div>
+
+    <div class="card p-6"><h3 class="text-xl font-semibold mb-3">Boston qualifiers by age bracket & gender (2026)</h3><canvas id="chart-bqage" height="120"></canvas></div>
+
+    <div id="weather-card" class="card p-6 hidden">
+      <div class="flex items-center justify-between gap-2 mb-3"><h3 class="text-xl font-semibold">Race-day weather (15‑min)</h3></div>
+      <canvas id="chart-weather" height="120"></canvas>
+      <p class="mt-2 text-xs text-slate-500">Upload weather CSV with <code>Time</code> or <code>HHmm</code>, <code>Temperature_C</code>, <code>FeelsLike_C</code>.</p>
+    </div>
+
+    <div class="card p-6">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <h3 class="text-xl font-semibold">Checkpoint flow vs weather</h3>
+        <select id="checkpointSelect" class="px-3 py-1 rounded border border-slate-300 text-sm"><option value="Finish">Finish</option></select>
+      </div>
+      <canvas id="chart-flow-weather" height="120"></canvas>
+      <p class="mt-2 text-xs text-slate-500">Counts of runners crossing the selected chip point in 15‑minute windows, with temperature overlay.</p>
+    </div>
+
+    <div class="card p-6"><div class="flex items-center justify-between gap-2 mb-3"><h3 class="text-xl font-semibold">Top 20 countries by participants (stacked by race status)</h3></div><canvas id="chart-country-stack" height="130"></canvas></div>
+
+    <div class="card p-6"><div class="flex items-center justify-between gap-2 mb-3"><h3 class="text-xl font-semibold">Age group distribution</h3></div><canvas id="chart-age" height="110"></canvas></div>
+
+    <div class="card p-6"><h3 class="text-xl font-semibold mb-2">Insights (weather × performance)</h3><ul id="insights" class="list-disc pl-5 text-sm text-slate-700 space-y-1"></ul></div>
+  </section>
+
+<script>
+// Helpers
+function parseHMS(s){ if(s==null) return null; s=String(s).trim(); if(!s||s==='-'||s==='–'||s==='—') return null; var p=s.split(':'); if(p.length!==3) return null; var h=+p[0], m=+p[1], sec=+p[2]; if([h,m,sec].some(isNaN)) return null; return h*3600+m*60+sec; }
+function fmtHMS(t){ if(t==null) return '—'; var h=Math.floor(t/3600), m=Math.floor((t%3600)/60), s=Math.floor(t%60); var pad=function(x){return String(x).padStart(2,'0')}; return pad(h)+':'+pad(m)+':'+pad(s); }
+function median(a){ if(!a.length) return null; var b=a.slice().sort(function(x,y){return x-y}); var i=Math.floor(b.length/2); return b.length%2?b[i]:Math.floor((b[i-1]+b[i])/2); }
+function labelStartSlot(min){ var st=Math.floor(min/30)*30, en=st+30; var h1=String(Math.floor(st/60)).padStart(2,'0'), m1=String(st%60).padStart(2,'0'); var h2=String(Math.floor(en/60)).padStart(2,'0'), m2=String(en%60).padStart(2,'0'); return h1+':'+m1+'–'+h2+':'+m2; }
+function ensureChart(ctx,type,data,opt){ if(ctx._chart) ctx._chart.destroy(); ctx._chart=new Chart(ctx,{type:type,data:data,options:opt}); return ctx._chart; }
+function toHHmm(input){ if(input==null) return null; var s=String(input).trim(); var d=new Date(s); if(!isNaN(d)){ var hh=String(d.getHours()).padStart(2,'0'); var mm=String(d.getMinutes()).padStart(2,'0'); return hh+':'+mm; } if(s.indexOf(':')>-1){ var parts=s.split(':'); if(parts.length>=2){ var hh2=String(parts[0]).padStart(2,'0'); var mm2=String(parts[1]).slice(0,2); return hh2+':'+mm2; } } if(s.length===4 && !isNaN(Number(s))){ return s.slice(0,2)+':'+s.slice(2,4); } return null; }
+function get15Label(hhmm){ if(!hhmm) return null; var H=+hhmm.slice(0,2), M=+hhmm.slice(3,5); if(isNaN(H)||isNaN(M)) return null; var q=Math.floor(M/15)*15; return String(H).padStart(2,'0')+':'+String(q).padStart(2,'0'); }
+function buildTimeBins(list){ var b=[0,9000,10800,12600,13500,14400,15300,16200,17100,18000,18900,19800,20700,21600,22500,9e8]; var L=['<2:30','2:30–3:00','3:00–3:30','3:30–3:45','3:45–4:00','4:00–4:15','4:15–4:30','4:30–4:45','4:45–5:00','5:00–5:15','5:15–5:30','5:30–5:45','5:45–6:00','6:00–6:15','>6:15']; var c=new Array(L.length).fill(0); for(var i=0;i<list.length;i++){ var s=list[i]; if(s==null) continue; for(var j=0;j<L.length;j++){ if(s>=b[j]&&s<b[j+1]){ c[j]++; break; } } } return {labels:L,counts:c}; }
+
+// Boston 2026 thresholds (seconds)
+var BQ={
+  order:['18-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80+'],
+  M:{'18-34':10500,'35-39':10800,'40-44':11100,'45-49':11700,'50-54':12000,'55-59':12600,'60-64':13800,'65-69':14700,'70-74':15600,'75-79':16500,'80+':17400},
+  F:{'18-34':12300,'35-39':12600,'40-44':12900,'45-49':13500,'50-54':13800,'55-59':14400,'60-64':15600,'65-69':16500,'70-74':17400,'75-79':18300,'80+':19200},
+  X:{'18-34':12300,'35-39':12600,'40-44':12900,'45-49':13500,'50-54':13800,'55-59':14400,'60-64':15600,'65-69':16500,'70-74':17400,'75-79':18300,'80+':19200}
+};
+function parseAgeToBracket(s){ if(!s) return null; s=String(s).trim(); var n=s.replace('–','-').replace('—','-').toLowerCase(); if((n.indexOf('80')>-1 && n.indexOf('+')>-1) || n.indexOf('80 and')>-1) return '80+'; var parts=n.split('-'); var a=parseInt(parts[0],10); if(!isNaN(a)) return a<=34?'18-34':a<=39?'35-39':a<=44?'40-44':a<=49?'45-49':a<=54?'50-54':a<=59?'55-59':a<=64?'60-64':a<=69?'65-69':a<=74?'70-74':a<=79?'75-79':'80+'; return null; }
+
+// Globals
+var countryMap=null, chartWeather=null, chartCountryStack=null, chartAge=null, chartFlowWeather=null;
+var runnerRows=null, splitsRows=null; var weatherMap=null, weatherLabels=[];
+
+function buildCheckpointMap(rows){ if(!rows||!rows.length) return {}; var cols=Object.keys(rows[0]||{}); var map={}; function has(col){ return cols.some(function(c){return c.toLowerCase()===col}); }
+  var pairs=[ ['5km','5kmtimeofday'], ['10km','10kmtimeofday'], ['15km','15kmtimeofday'], ['20km','20kmtimeofday'], ['Half','halftimeofday'], ['Half','half_time_of_day'], ['Half','halbtimeofday'], ['25km','25kmtimeofday'], ['30km','30kmtimeofday'], ['35km','35kmtimeofday'], ['40km','40kmtimeofday'], ['Finish','finishtimeofday'] ];
+  for(var i=0;i<pairs.length;i++){ var key=pairs[i][0], cand=pairs[i][1]; if(has(cand)){ for(var j=0;j<cols.length;j++){ if(cols[j].toLowerCase()===cand){ map[key]=cols[j]; break; } } }
+  }
+  return map;
+}
+
+function updateCheckpointOptions(){ var rows=(splitsRows&&splitsRows.length)?splitsRows:(runnerRows||[]); if(!rows.length) return; var cpMap=buildCheckpointMap(rows); var sel=document.getElementById('checkpointSelect'); if(!sel) return; sel.innerHTML=''; var order=['5km','10km','15km','20km','Half','25km','30km','35km','40km','Finish']; for(var i=0;i<order.length;i++){ var k=order[i]; if(cpMap[k]){ var opt=document.createElement('option'); opt.value=k; opt.textContent=k; sel.appendChild(opt); } } }
+
+function renderFlowWeatherFor(cp){ var rows=(splitsRows&&splitsRows.length)?splitsRows:(runnerRows||[]); if(!rows.length) return; var cpMap=buildCheckpointMap(rows); var col=cpMap[cp]; var ctx=document.getElementById('chart-flow-weather').getContext('2d'); var counts={}; for(var i=0;i<rows.length;i++){ var v=col?rows[i][col]:null; if(!v) continue; var hhmm=toHHmm(v); var b=get15Label(hhmm); if(!b) continue; counts[b]=(counts[b]||0)+1; }
+  var labels=Object.keys(counts).sort(function(a,b){return a.localeCompare(b)}); var temp=[],feels=[]; if(weatherMap){ var all={}; for(var i2=0;i2<labels.length;i2++){ all[labels[i2]]=true; } for(var j=0;j<weatherLabels.length;j++){ all[weatherLabels[j]]=true; } labels=Object.keys(all).sort(function(a,b){return a.localeCompare(b)}); }
+  for(var k=0;k<labels.length;k++){ var w=weatherMap?weatherMap[labels[k]]:null; temp.push(w&&w.t!=null?w.t:null); feels.push(w&&w.f!=null?w.f:null); }
+  var vals=labels.map(function(l){return counts[l]||0});
+  chartFlowWeather=ensureChart(ctx,'bar',{labels:labels,datasets:[{label:'Runners (15‑min)',data:vals,yAxisID:'y'},{label:'Temperature (°C)',data:temp,type:'line',yAxisID:'y1',tension:.25,pointRadius:2}]},{responsive:true,scales:{y:{title:{display:true,text:'Runners'}},y1:{position:'right',title:{display:true,text:'°C'},grid:{drawOnChartArea:false}}}});
+}
+
+function buildInsights(){ var box=document.getElementById('insights'); if(!box) return; box.innerHTML=''; var rows=(splitsRows&&splitsRows.length)?splitsRows:(runnerRows||[]); var cpMap=buildCheckpointMap(rows); var fCol=cpMap['Finish']; if(fCol){ var counts={}; for(var i=0;i<rows.length;i++){ var b=get15Label(toHHmm(rows[i][fCol])); if(!b) continue; counts[b]=(counts[b]||0)+1; } var arr=Object.keys(counts).map(function(k){return [k,counts[k]]}).sort(function(a,b){return b[1]-a[1]}); if(arr.length){ var t=arr[0][0], c=arr[0][1]; var parts=t.split(':'), mm=parseInt(parts[1],10), hh=parseInt(parts[0],10); var mm2=mm+15; var hh2=hh; if(mm2>=60){ mm2-=60; hh2=(hh2+1)%24; } var t2=String(hh2).padStart(2,'0')+':'+String(mm2).padStart(2,'0'); var li=document.createElement('li'); li.textContent='Peak finish flow: '+c+' finishers in '+t+'–'+t2+'.'; box.appendChild(li); if(weatherMap&&weatherMap[t]&&weatherMap[t].t!=null){ var li2=document.createElement('li'); li2.textContent='Temperature at peak: '+weatherMap[t].t+'°C'+(weatherMap[t].f!=null?' (feels '+weatherMap[t].f+'°C)':'')+'.'; box.appendChild(li2); }
+  } }
+}
+
+function onCSVLoaded(rows){ runnerRows=rows; var prog=document.getElementById('progress'); prog.textContent='Loaded '+rows.length.toLocaleString()+' rows.'; if(!rows.length) return; var find=function(cands){ var cols=Object.keys(rows[0]||{}); for(var i=0;i<cols.length;i++){ var lc=cols[i].toLowerCase(); if(cands.indexOf(lc)>-1) return cols[i]; } return null; };
+  var colTime=find(['timetotal','time_total','finishnetto','nettime','nett_time','net']); var colStatus=find(['racestatus','race_status','status']); var colGender=find(['gender','sex']); var colAge=find(['agegroup','age_class','age','ageclass']); var colStart=find(['starttimenet','start_time_net','starttime_net']);
+  var times=[], status={}, gender={}, startSlots={}; var total=0, finished=0, under4=0;
+  for(var r=0;r<rows.length;r++){
+    total++; var t=colTime?parseHMS(rows[r][colTime]):null; var st=colStatus?String(rows[r][colStatus]||'').toLowerCase().trim():''; var fin=st?st.indexOf('finis')===0:(t!=null); var key=fin?'Finished':(st?st[0].toUpperCase()+st.slice(1):'Unknown'); status[key]=(status[key]||0)+1; if(fin) finished++; var g=colGender?String(rows[r][colGender]||'').trim().toUpperCase():''; if(g==='W') g='F'; g=(g==='M'||g==='F'||g==='X')?g:'Other'; gender[g]=(gender[g]||0)+1; if(t!=null){ times.push(t); if(t<14400) under4++; } var sn=colStart?parseHMS(rows[r][colStart]):null; if(sn!=null){ var slot=labelStartSlot(Math.floor(sn/60)); startSlots[slot]=(startSlots[slot]||0)+1; }
+  }
+  document.getElementById('kpi-total').textContent=total.toLocaleString();
+  document.getElementById('kpi-finished').textContent=finished.toLocaleString();
+  document.getElementById('kpi-finish-rate').textContent=total? (finished/total*100).toFixed(1)+'%':'—';
+  document.getElementById('kpi-median').textContent=fmtHMS(median(times));
+  document.getElementById('kpi-under4').textContent=total? (under4/total*100).toFixed(1)+'%':'—';
+  var bqCnt=0, byBracket={};
+  for(var r2=0;r2<rows.length;r2++){
+    var t2=colTime?parseHMS(rows[r2][colTime]):null; var st2=colStatus?String(rows[r2][colStatus]||'').toLowerCase().trim():''; var fin2=st2?st2.indexOf('finis')===0:(t2!=null); if(!fin2||t2==null) continue; var g2=colGender?String(rows[r2][colGender]||'').trim().toUpperCase():''; if(g2==='W') g2='F'; if(!(g2==='M'||g2==='F'||g2==='X')) continue; var br=parseAgeToBracket(colAge?String(rows[r2][colAge]||''):null); if(!br||BQ[g2][br]==null) continue; if(t2<=BQ[g2][br]){ bqCnt++; if(!byBracket[br]) byBracket[br]={M:0,F:0,X:0}; byBracket[br][g2]++; }
+  }
+  document.getElementById('kpi-bqcount').textContent=bqCnt.toLocaleString();
+  document.getElementById('kpi-bqrate').textContent=finished? (bqCnt/finished*100).toFixed(1)+'%':'—';
+  var timeCtx=document.getElementById('chart-time').getContext('2d'); var bins=buildTimeBins(times); ensureChart(timeCtx,'bar',{labels:bins.labels,datasets:[{label:'Finishers',data:bins.counts}]},{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false}}}});
+  var stCtx=document.getElementById('chart-status').getContext('2d'); var sArr=Object.keys(status).map(function(k){return [k,status[k]]}).sort(function(a,b){return b[1]-a[1]}); ensureChart(stCtx,'pie',{labels:sArr.map(function(d){return d[0]}),datasets:[{data:sArr.map(function(d){return d[1]})}]},{responsive:true});
+  var gCtx=document.getElementById('chart-gender').getContext('2d'); var gArr=Object.keys(gender).map(function(k){return [k,gender[k]]}); ensureChart(gCtx,'pie',{labels:gArr.map(function(d){return d[0]}),datasets:[{data:gArr.map(function(d){return d[1]})}]},{responsive:true});
+  var startCtx=document.getElementById('chart-start').getContext('2d'); var startArr=Object.keys(startSlots).sort().map(function(k){return [k,startSlots[k]]}); ensureChart(startCtx,'bar',{labels:startArr.map(function(d){return d[0]}),datasets:[{label:'Starters',data:startArr.map(function(d){return d[1]})}]},{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:70,minRotation:70}}}});
+  var bqCtx=document.getElementById('chart-bqage').getContext('2d'); var labels=BQ.order; var dM=labels.map(function(br){return (byBracket[br]&&byBracket[br].M)||0}); var dF=labels.map(function(br){return (byBracket[br]&&byBracket[br].F)||0}); var dX=labels.map(function(br){return (byBracket[br]&&byBracket[br].X)||0}); ensureChart(bqCtx,'bar',{labels:labels,datasets:[{label:'Men',data:dM,stack:'bq'},{label:'Women',data:dF,stack:'bq'},{label:'Non-binary',data:dX,stack:'bq'}]},{responsive:true,scales:{x:{stacked:true},y:{stacked:true}}});
+  renderExtraCharts(rows);
+  updateCheckpointOptions();
+  renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish');
+  buildInsights();
+}
+
+function renderExtraCharts(rows){ if(!rows||!rows.length) return; var getCol=function(names){ var cols=Object.keys(rows[0]||{}); for(var i=0;i<cols.length;i++){ var lc=cols[i].toLowerCase(); if(names.indexOf(lc)>-1) return cols[i]; } return null; };
+  var colTime=getCol(['timetotal','time_total','finishnetto','nettime','nett_time','net']); var colStatus=getCol(['racestatus','race_status','status']); var colAge=getCol(['agegroup','age_class','age','ageclass']); var colCountry=getCol(['country','nation','countryname']); var colCode=getCol(['countrycode','nationcode','code','ioc','alpha3']);
+  var ages={}, countriesByStatus={}, countryTotals={};
+  for(var i=0;i<rows.length;i++){ var ag=colAge?String(rows[i][colAge]||'').trim():''; if(ag) ages[ag]=(ages[ag]||0)+1; var t=colTime?parseHMS(rows[i][colTime]):null; var stStr=colStatus?String(rows[i][colStatus]||'').toLowerCase().trim():''; var fin=stStr?stStr.indexOf('finis')===0:(t!=null); var stLab= fin?'Finished':(stStr?stStr[0].toUpperCase()+stStr.slice(1):'Unknown'); var cname=''; if(colCountry && rows[i][colCountry]) cname=String(rows[i][colCountry]).trim(); else if(colCode && rows[i][colCode]){ var code=String(rows[i][colCode]).trim().toUpperCase(); cname=(countryMap&&countryMap[code])?countryMap[code].Country:(code||'Unknown'); } else cname='Unknown'; if(!countriesByStatus[cname]) countriesByStatus[cname]={}; countriesByStatus[cname][stLab]=(countriesByStatus[cname][stLab]||0)+1; countryTotals[cname]=(countryTotals[cname]||0)+1; }
+  var top=Object.keys(countryTotals).map(function(k){return [k,countryTotals[k]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,20).map(function(d){return d[0]}); var statusSet={}; for(var ti=0;ti<top.length;ti++){ var m=countriesByStatus[top[ti]]||{}; Object.keys(m).forEach(function(k){statusSet[k]=true}); }
+  var statusList=Object.keys(statusSet).sort(function(a,b){ if(a==='Finished'&&b!=='Finished') return -1; if(b==='Finished'&&a!=='Finished') return 1; return a.localeCompare(b); });
+  var datasets=statusList.map(function(st){ return {label:st,data:top.map(function(c){ return (countriesByStatus[c]&&countriesByStatus[c][st])||0; }),stack:'cs'}; });
+  var csCtx=document.getElementById('chart-country-stack').getContext('2d'); chartCountryStack=ensureChart(csCtx,'bar',{labels:top,datasets:datasets},{responsive:true,indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}}});
+  var ageCtx=document.getElementById('chart-age').getContext('2d'); var ageArr=Object.keys(ages).sort().map(function(k){return [k,ages[k]]}); chartAge=ensureChart(ageCtx,'bar',{labels:ageArr.map(function(d){return d[0]}),datasets:[{label:'Runners',data:ageArr.map(function(d){return d[1]})}]},{responsive:true,plugins:{legend:{display:false}}});
+}
+
+function onMapLoaded(rows){ if(!rows||!rows.length){ var pm=document.getElementById('progress-map'); if(pm) pm.textContent='No mapping rows.'; return; } var headers=Object.keys(rows[0]||{}).reduce(function(a,k){a[k.toLowerCase()]=k;return a;},{}); var codeCol=headers['code']||headers['countrycode']||headers['ioc']||headers['alpha3']; var countryCol=headers['country']||headers['name']; var contCol=headers['continent']||headers['region']; var map={}; for(var i=0;i<rows.length;i++){ var code=codeCol?String(rows[i][codeCol]||'').trim().toUpperCase():''; if(!code) continue; var country=countryCol?String(rows[i][countryCol]||'').trim():code; var cont=contCol?String(rows[i][contCol]||'').trim():''; map[code]={Country:country,Continent:cont}; } countryMap=map; var pm2=document.getElementById('progress-map'); if(pm2) pm2.textContent='Mapping loaded: '+Object.keys(map).length+' codes.'; }
+
+function onWeatherLoaded(rows){ if(!rows||!rows.length){ var pw=document.getElementById('progress-weather'); if(pw) pw.textContent='No weather rows.'; return; } var headers=Object.keys(rows[0]||{}).reduce(function(a,k){a[k.toLowerCase()]=k;return a;},{}); var tCol=headers['time']||headers['datetime']||headers['timestamp']||headers['date']||headers['hhmm']; var tempCol=headers['temperature_c']||headers['temp_c']||headers['temperature']||headers['temp']; var feelCol=headers['feelslike_c']||headers['feelslike']||headers['apparent_temp_c']||headers['apparenttemperature']; var map={}; for(var i=0;i<rows.length;i++){ var label=toHHmm(rows[i][tCol]); if(!label) continue; var tVal=tempCol!=null? Number(String(rows[i][tempCol]).replace(',','.')): NaN; var fVal=feelCol!=null? Number(String(rows[i][feelCol]).replace(',','.')): NaN; if(!map[label]) map[label]={t:null,f:null}; if(!isNaN(tVal)) map[label].t=tVal; if(!isNaN(fVal)) map[label].f=fVal; }
+  weatherMap=map; weatherLabels=Object.keys(map).sort(function(a,b){return a.localeCompare(b)}); var temps=weatherLabels.map(function(l){return map[l].t}); var feels=weatherLabels.map(function(l){return map[l].f}); var card=document.getElementById('weather-card'); if(card) card.classList.remove('hidden'); var ctx=document.getElementById('chart-weather').getContext('2d'); chartWeather=ensureChart(ctx,'line',{labels:weatherLabels,datasets:[{label:'Temperature (°C)',data:temps,tension:.3,pointRadius:2},{label:'Feels like (°C)',data:feels,tension:.3,pointRadius:2}]},{responsive:true,scales:{y:{title:{display:true,text:'°C'}}}}); var pw2=document.getElementById('progress-weather'); if(pw2) pw2.textContent='Loaded '+weatherLabels.length+' weather points.'; updateCheckpointOptions(); renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish'); buildInsights(); }
+
+// Wiring
+(function(){ var input=document.getElementById('csvFile'); if(input){ input.addEventListener('change',function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; document.getElementById('progress').textContent='Parsing '+f.name+' …'; Papa.parse(f,{header:true,skipEmptyLines:true,complete:function(res){ if(!res.data||!res.data.length){ document.getElementById('progress').textContent='No rows found.'; return;} onCSVLoaded(res.data); }}); }); }
+  var mapInput=document.getElementById('mapFile'); if(mapInput){ mapInput.addEventListener('change',function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; var pm=document.getElementById('progress-map'); if(pm) pm.textContent='Parsing '+f.name+' …'; Papa.parse(f,{header:true,skipEmptyLines:true,complete:function(res){ if(!res.data||!res.data.length){ if(pm) pm.textContent='No mapping rows.'; return; } onMapLoaded(res.data); }}); }); }
+  var weatherInput=document.getElementById('weatherFile'); if(weatherInput){ weatherInput.addEventListener('change',function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; var pw=document.getElementById('progress-weather'); if(pw) pw.textContent='Parsing '+f.name+' …'; Papa.parse(f,{header:true,skipEmptyLines:true,complete:function(res){ if(!res.data||!res.data.length){ if(pw) pw.textContent='No weather rows.'; return; } onWeatherLoaded(res.data); }}); }); }
+  var splitsInput=document.getElementById('splitsFile'); if(splitsInput){ splitsInput.addEventListener('change',function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; var ps=document.getElementById('progress-splits'); if(ps) ps.textContent='Parsing '+f.name+' …'; Papa.parse(f,{header:true,skipEmptyLines:true,complete:function(res){ if(!res.data||!res.data.length){ if(ps) ps.textContent='No splits rows.'; return; } splitsRows=res.data; if(ps) ps.textContent='Splits rows: '+splitsRows.length.toLocaleString(); updateCheckpointOptions(); renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish'); buildInsights(); }}); }); }
+  var sel=document.getElementById('checkpointSelect'); if(sel){ sel.addEventListener('change',function(){ renderFlowWeatherFor(sel.value); }); }
+})();
+</script>
+</body>
+</html>
