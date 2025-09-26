@@ -271,25 +271,28 @@ function computeStats(rows){
     // Load data & render
     let stats2025=null, stats2024=null;
     function tryRender(){
-      if (!stats2025 || !stats2024) return;
-      setCardNumber('k-total-2025','k-total-2024','k-total-delta', stats2025.total,        stats2024.total,        {formatter:'raw'});
-      setCardNumber('k-finished-2025','k-finished-2024','k-finished-delta', stats2025.finished,     stats2024.finished,     {formatter:'raw'});
-      setCardNumber('k-fr-2025','k-fr-2024','k-fr-delta', stats2025.finishRate,   stats2024.finishRate,   {formatter:'pct'});
-      setCardNumber('k-med-2025','k-med-2024','k-med-delta', stats2025.median,       stats2024.median,       {formatter:'time', invert:true});
-      setCardNumber('k-u4-2025','k-u4-2024','k-u4-delta', stats2025.under4Rate,   stats2024.under4Rate,   {formatter:'pct'});
-      setCardNumber('k-dsq-2025','k-dsq-2024','k-dsq-delta', stats2025.dsq,          stats2024.dsq,          {formatter:'raw'});
+      // Render as soon as at least 2025 OR 2024 is available
+      if (!stats2025 && !stats2024) return;
+      setCardNumber('k-total-2025','k-total-2024','k-total-delta', (stats2025?stats2025.total:null),        (stats2024?stats2024.total:null),        {formatter:'raw'});
+      setCardNumber('k-finished-2025','k-finished-2024','k-finished-delta', (stats2025?stats2025.finished:null),     (stats2024?stats2024.finished:null),     {formatter:'raw'});
+      setCardNumber('k-fr-2025','k-fr-2024','k-fr-delta', (stats2025?stats2025.finishRate:null),   (stats2024?stats2024.finishRate:null),   {formatter:'pct'});
+      setCardNumber('k-med-2025','k-med-2024','k-med-delta', (stats2025?stats2025.median:null),       (stats2024?stats2024.median:null),       {formatter:'time', invert:true});
+      setCardNumber('k-u4-2025','k-u4-2024','k-u4-delta', (stats2025?stats2025.under4Rate:null),   (stats2024?stats2024.under4Rate:null),   {formatter:'pct'});
+      setCardNumber('k-dsq-2025','k-dsq-2024','k-dsq-delta', (stats2025?stats2025.dsq:null),          (stats2024?stats2024.dsq:null),          {formatter:'raw'});
 
-      setCardNumber('k-fast-2025','k-fast-2024','k-fast-delta', stats2025.fastest,     stats2024.fastest,     {formatter:'time', invert:true});
-      setCardNumber('k-last-2025','k-last-2024','k-last-delta', stats2025.slowest,     stats2024.slowest,     {formatter:'time', invert:true});
-      setCardNumber('k-cnt-2025','k-cnt-2024','k-cnt-delta',    stats2025.countries,   stats2024.countries,   {formatter:'raw'});
+      setCardNumber('k-fast-2025','k-fast-2024','k-fast-delta', (stats2025?stats2025.fastest:null),     (stats2024?stats2024.fastest:null),     {formatter:'time', invert:true});
+      setCardNumber('k-last-2025','k-last-2024','k-last-delta', (stats2025?stats2025.slowest:null),     (stats2024?stats2024.slowest:null),     {formatter:'time', invert:true});
+      setCardNumber('k-cnt-2025','k-cnt-2024','k-cnt-delta',    (stats2025?stats2025.countries:null),   (stats2024?stats2024.countries:null),   {formatter:'raw'});
 
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       Papa.parse(URL_RUNNERS_2025, { download:true, header:true, skipEmptyLines:true, complete: r => {
+        if (!r.data || !r.data.length) { console.warn('No rows in 2025 CSV:', URL_RUNNERS_2025); }
         stats2025 = computeStats(r.data||[]); tryRender();
       }});
       Papa.parse(URL_RUNNERS_2024, { download:true, header:true, skipEmptyLines:true, complete: r => {
+        if (!r.data || !r.data.length) { console.warn('No rows in 2024 CSV:', URL_RUNNERS_2024); }
         stats2024 = computeStats(r.data||[]); tryRender();
       }});
     });
