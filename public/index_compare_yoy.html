@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marathon — KPI Compare (2025 vs 2024)</title>
+  <meta name="description" content="KPI cards comparing 2025 vs 2024">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --card-bg: #ffffff; }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .card { background: var(--card-bg); border-radius: 14px; box-shadow: 0 10px 26px rgba(2,8,23,0.06); }
+    .metric-2025 { font-size: clamp(1.75rem, 5vw, 2.5rem); font-weight: 700; letter-spacing: .2px; }
+    .metric-2024 { font-size: .9rem; color: rgb(100,116,139); }
+    .delta { font-size: .9rem; display: inline-flex; align-items: center; gap: .35rem; }
+    .badge { font-size: .7rem; padding: .15rem .4rem; border-radius: .5rem; background: #f1f5f9; color: #334155; }
+    .grid-cards { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1rem; }
+    @media (max-width: 1280px){ .grid-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 768px) { .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <header class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 grid place-items-center ring-1 ring-white/40 shadow">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M13 5a3 3 0 1 0 6 0 3 3 0 0 0-6 0ZM8 10l5-2 3 2-3 3 2 2-2 5-3-3-4 2 2-5-3-2 3-2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-semibold leading-tight">Marathon — KPI Compare</h1>
+          <p class="text-xs text-slate-500 -mt-0.5">2025 vs 2024</p>
+        </div>
+      </div>
+      <a href="index.html" class="text-sm text-slate-600 hover:text-slate-900 underline">Back to main</a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-6">
+    <section class="mb-4 flex items-center gap-3">
+      <span class="badge">2025 (primary)</span>
+      <span class="text-sm text-slate-500">Below each card: 2024 (smaller) + ▲/▼ change vs last year.</span>
+    </section>
+
+    <section class="grid-cards">
+      <!-- Total entrants -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Total entrants</p>
+        <div id="k-total-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-total-2024">—</span>
+          <span id="k-total-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- Finished -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Finished</p>
+        <div id="k-finished-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-finished-2024">—</span>
+          <span id="k-finished-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- Finish rate -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Finish rate</p>
+        <div id="k-fr-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-fr-2024">—</span>
+          <span id="k-fr-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- Median time -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Median time</p>
+        <div id="k-med-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-med-2024">—</span>
+          <span id="k-med-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- Under 4 hours (of total) -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">&lt; 4h (of total)</p>
+        <div id="k-u4-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-u4-2024">—</span>
+          <span id="k-u4-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- DSQ -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">DSQ</p>
+        <div id="k-dsq-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-dsq-2024">—</span>
+          <span id="k-dsq-delta" class="delta">—</span>
+        </div>
+      </div>
+    
+      <!-- Fastest time -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Fastest time</p>
+        <div id="k-fast-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-fast-2024">—</span>
+          <span id="k-fast-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- Last place (slowest finisher) -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Last place</p>
+        <div id="k-last-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-last-2024">—</span>
+          <span id="k-last-delta" class="delta">—</span>
+        </div>
+      </div>
+
+      <!-- Countries represented -->
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Countries represented</p>
+        <div id="k-cnt-2025" class="metric-2025">—</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="metric-2024" id="k-cnt-2024">—</span>
+          <span id="k-cnt-delta" class="delta">—</span>
+        </div>
+      </div>
+</section>
+  </main>
+
+  <script>
+    // --- CONFIG ---
+    const DATA_BASE = 'https://raw.githubusercontent.com/danaustralia/berlinMarathon/main/support/';
+    // Adjust if your 2025 export has a different file name
+    const URL_RUNNERS_2025 = DATA_BASE + 'BM_export_2025.csv';
+    const URL_RUNNERS_2024 = DATA_BASE + 'BM_export_2024.csv';
+
+    // --- Helpers ---
+    function parseHMS(s){
+      if (!s) return null;
+      if (typeof s === 'number' && Number.isFinite(s)) return s;
+      s = String(s).trim();
+      // Accept H:MM:SS, HH:MM:SS, MM:SS, or seconds
+      const parts = s.split(':');
+      if (parts.length === 3){
+        const h = +parts[0], m = +parts[1], sec = +parts[2];
+        if ([h,m,sec].every(Number.isFinite)) return h*3600 + m*60 + sec;
+      } else if (parts.length === 2){
+        const m = +parts[0], sec = +parts[1];
+        if ([m,sec].every(Number.isFinite)) return m*60 + sec;
+      } else {
+        const n = +s;
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    }
+    function fmtHMS(total){
+      if (total == null || !Number.isFinite(total)) return '—';
+      total = Math.max(0, Math.floor(total));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+    function median(arr){
+      const a = arr.filter(v => v!=null && Number.isFinite(v)).slice().sort((x,y)=>x-y);
+      if (!a.length) return null;
+      const mid = Math.floor(a.length/2);
+      return (a.length % 2) ? a[mid] : Math.round((a[mid-1] + a[mid]) / 2);
+    }
+
+    // Find columns by candidate names (case-insensitive)
+    function findCol(row, candidates){
+      const cols = Object.keys(row||{});
+      const lower = cols.map(c=>c.toLowerCase());
+      for (const cand of candidates){
+        const idx = lower.indexOf(cand);
+        if (idx >= 0) return cols[idx];
+      }
+      return null;
+    }
+
+    
+function computeStats(rows){
+  if (!rows || !rows.length) return null;
+  const cStatus = findCol(rows[0], ['racestatus','race_status','status']);
+  const cTime   = findCol(rows[0], ['timetotal','time_total','finishnetto','nett_time','nettime','net']);
+  const cCountry= findCol(rows[0], ['countrycode','nationcode','code','ioc','alpha3','country','nation','countryname']);
+  const total = rows.length;
+  let finished = 0, dsq = 0, under4 = 0;
+  const times = [];
+  let fastest = null, slowest = null;
+  const countries = new Set();
+  for (const r of rows){
+    const st = cStatus ? String(r[cStatus]||'').toLowerCase().trim() : '';
+    const t  = cTime ? parseHMS(r[cTime]) : null;
+    const fin = st ? st.startsWith('finis') : (t != null);
+    if (fin){
+      finished++;
+      if (t != null){
+        times.push(t);
+        if (t <= 4*3600) under4++;
+        fastest = (fastest==null || t < fastest) ? t : fastest;
+        slowest = (slowest==null || t > slowest) ? t : slowest;
+      }
+    }
+    if (st && (st.startsWith('dsq') || st.includes('disq'))) dsq++;
+    const cc = cCountry ? String(r[cCountry]||'').trim() : '';
+    if (cc) countries.add(cc.toUpperCase());
+  }
+  return {
+    total,
+    finished,
+    finishRate: total ? (finished/total*100) : 0,
+    median: median(times),
+    under4Rate: total ? (under4/total*100) : 0,
+    dsq,
+    fastest,
+    slowest,
+    countries: countries.size
+  };
+}
+
+    function arrowDelta(curr, prev, invert=false){
+      // invert=false: arrow up if curr>prev; invert=true: arrow up if curr<prev (e.g., median time lower = better)
+      if (curr==null || prev==null || !Number.isFinite(curr) || !Number.isFinite(prev)) return {icon:'▬', cls:'text-slate-400', text:''};
+      const diff = curr - prev;
+      const up = invert ? diff < 0 : diff > 0;
+      const down = invert ? diff > 0 : diff < 0;
+      const cls = up ? 'text-emerald-600' : down ? 'text-rose-600' : 'text-slate-500';
+      const icon = up ? '▲' : down ? '▼' : '▬';
+      const pct = (prev!==0) ? Math.round(Math.abs(diff/prev)*1000)/10 : null;
+      const pctText = (pct!=null && Number.isFinite(pct)) ? ` ${pct}%` : '';
+      return {icon, cls, text:pctText};
+    }
+
+    function setCardNumber(idBig, idSmall, idDelta, curr, prev, opts){
+      const big = document.getElementById(idBig);
+      const small = document.getElementById(idSmall);
+      const delta = document.getElementById(idDelta);
+      if (!big || !small || !delta) return;
+      const { formatter='raw', suffix='', invert=false } = (opts||{});
+      function fmt(v){
+        if (v==null) return '—';
+        if (formatter==='time') return fmtHMS(v);
+        if (formatter==='pct')  return (Number(v).toFixed(1) + '%');
+        return Number(v).toLocaleString();
+      }
+      big.textContent = fmt(curr) + (suffix||'');
+      small.textContent = fmt(prev) + (suffix||'');
+      const d = arrowDelta(
+        formatter==='pct' || formatter==='time' ? curr : Number(curr),
+        formatter==='pct' || formatter==='time' ? prev : Number(prev),
+        invert
+      );
+      delta.innerHTML = `<span class="${d.cls}">${d.icon}</span><span class="text-slate-500">${d.text}</span>`;
+    }
+
+    // Load data & render
+    let stats2025=null, stats2024=null;
+    function tryRender(){
+      if (!stats2025 || !stats2024) return;
+      setCardNumber('k-total-2025','k-total-2024','k-total-delta', stats2025.total,        stats2024.total,        {formatter:'raw'});
+      setCardNumber('k-finished-2025','k-finished-2024','k-finished-delta', stats2025.finished,     stats2024.finished,     {formatter:'raw'});
+      setCardNumber('k-fr-2025','k-fr-2024','k-fr-delta', stats2025.finishRate,   stats2024.finishRate,   {formatter:'pct'});
+      setCardNumber('k-med-2025','k-med-2024','k-med-delta', stats2025.median,       stats2024.median,       {formatter:'time', invert:true});
+      setCardNumber('k-u4-2025','k-u4-2024','k-u4-delta', stats2025.under4Rate,   stats2024.under4Rate,   {formatter:'pct'});
+      setCardNumber('k-dsq-2025','k-dsq-2024','k-dsq-delta', stats2025.dsq,          stats2024.dsq,          {formatter:'raw'});
+
+      setCardNumber('k-fast-2025','k-fast-2024','k-fast-delta', stats2025.fastest,     stats2024.fastest,     {formatter:'time', invert:true});
+      setCardNumber('k-last-2025','k-last-2024','k-last-delta', stats2025.slowest,     stats2024.slowest,     {formatter:'time', invert:true});
+      setCardNumber('k-cnt-2025','k-cnt-2024','k-cnt-delta',    stats2025.countries,   stats2024.countries,   {formatter:'raw'});
+
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Papa.parse(URL_RUNNERS_2025, { download:true, header:true, skipEmptyLines:true, complete: r => {
+        stats2025 = computeStats(r.data||[]); tryRender();
+      }});
+      Papa.parse(URL_RUNNERS_2024, { download:true, header:true, skipEmptyLines:true, complete: r => {
+        stats2024 = computeStats(r.data||[]); tryRender();
+      }});
+    });
+  </script>
+</body>
+</html>

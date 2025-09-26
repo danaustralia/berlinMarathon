@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Berlin Marathon — Insights (YoY)</title>
+
+  <!-- libs -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root { --ink:#0f172a; --muted:#475569; --card:#ffffff; --bg:#f8fafc; }
+    body { background:var(--bg); color:var(--ink); }
+    .card { border-radius:1rem; box-shadow:0 8px 24px rgba(2,6,23,.06); background:var(--card); }
+    .metric { font-variant-numeric:tabular-nums; }
+    .lede { font-size:1.05rem; line-height:1.6; color:var(--muted); }
+    .section p { color:var(--muted); }
+    .grid-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1rem }
+    .caption { color:#6b7280; font-size:.8rem }
+    .delta { font-variant-numeric:tabular-nums }
+    .delta-up { color:#059669 }   /* emerald */
+    .delta-down { color:#dc2626 } /* red */
+    .kpiFlex { display:flex; align-items:flex-end; gap:.5rem; flex-wrap:wrap }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- HERO -->
+  <header class="max-w-6xl mx-auto px-6 pt-10 pb-6">
+    <h1 class="text-4xl font-extrabold tracking-tight">Berlin Marathon — What the numbers say</h1>
+    <p class="lede mt-4">
+      A quick, human-readable tour through participation, outcomes, pacing, weather, and Boston qualification —
+      with year-over-year comparisons where available.
+    </p>
+    <p id="story-highlights" class="mt-4 text-base text-slate-600"></p>
+  </header>
+
+  <!-- KPI STRIP -->
+  <section class="max-w-6xl mx-auto px-6 pb-2">
+    <div class="grid-cards">
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Total runners</p>
+        <div id="kpi-total" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Finished</p>
+        <div id="kpi-finished" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Finish rate</p>
+        <div id="kpi-finish-rate" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Median finish</p>
+        <div id="kpi-median" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">Under 4h</p>
+        <div id="kpi-under4" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">BQ qualifiers</p>
+        <div id="kpi-bqcount" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">BQ rate</p>
+        <div id="kpi-bqrate" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+      <div class="card p-5">
+        <p class="text-sm text-slate-500">DSQ (TimeTotal)</p>
+        <div id="kpi-dsq" class="kpiFlex"><span class="text-3xl font-semibold metric">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARTICIPATION & OUTCOMES -->
+  <section class="max-w-6xl mx-auto px-6 pt-6 section">
+    <h2 class="text-2xl font-bold mb-2">Participation & outcomes</h2>
+    <p class="mb-4">Two quick structural comparisons: race status and gender are shown as 100% stacked bars (this vs last year).</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold mb-3">Race status (100%)</h3>
+        <canvas id="chart-status" height="140"></canvas>
+      </div>
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold mb-3">Gender share (100%)</h3>
+        <canvas id="chart-gender" height="140"></canvas>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-6">
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold mb-3">Start windows (30-min bins)</h3>
+        <canvas id="chart-start" height="120"></canvas>
+        <p class="caption mt-2">Bars: this year. Dashed line: last year.</p>
+      </div>
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold mb-3">Finish times (15-min bins)</h3>
+        <canvas id="chart-time" height="120"></canvas>
+        <p class="caption mt-2">Bars: this year. Dashed line: last year.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WEATHER & PACING -->
+  <section class="max-w-6xl mx-auto px-6 pt-10 section">
+    <h2 class="text-2xl font-bold mb-2">Heat & pacing</h2>
+    <p class="mb-4">How the day warmed up — and how the median pace evolved across 5-km segments. Two pace lines (this vs last), plus a temperature line.</p>
+    <div class="card p-6 mb-6">
+      <h3 class="text-lg font-semibold mb-3">Race-day weather (15-min)</h3>
+      <canvas id="chart-weather" height="120"></canvas>
+      <p class="caption mt-2">Temperature and “feels like”.</p>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="text-lg font-semibold mb-3">Median segment pace vs temperature</h3>
+      <canvas id="chart-seg-pace" height="120"></canvas>
+      <p class="caption mt-2">Pace shown as mm:ss per km. Temperature sampled at the most common crossing time of each segment end.</p>
+    </div>
+
+    <div class="card p-6 mt-6">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <h3 class="text-lg font-semibold">Checkpoint flow vs weather</h3>
+        <select id="checkpointSelect" class="px-3 py-1 rounded border border-slate-300 text-sm"></select>
+      </div>
+      <canvas id="chart-flow-weather" height="120"></canvas>
+      <p class="caption mt-2">Counts every 15 minutes for the selected chip point; temperature overlays on a right-hand axis.</p>
+    </div>
+  </section>
+
+  <!-- COUNTRIES, AGE, BQ -->
+  <section class="max-w-6xl mx-auto px-6 pt-10 section">
+    <h2 class="text-2xl font-bold mb-2">Countries, ages & Boston</h2>
+    <p class="mb-4">Largest delegations and age structure (with finish vs DNF), plus 2026 Boston-qualifying counts by age bracket and gender.</p>
+
+    <div class="card p-6 mb-6">
+      <h3 class="text-lg font-semibold mb-3">Top 20 countries (stacked by race status)</h3>
+      <canvas id="chart-country-stack" height="150"></canvas>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold mb-3">Age distribution (Finished vs DNF)</h3>
+        <canvas id="chart-age" height="130"></canvas>
+      </div>
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold mb-3">Boston qualifiers by age bracket & gender (2026)</h3>
+        <canvas id="chart-bqage" height="130"></canvas>
+      </div>
+    </div>
+
+    <div class="card p-6 mt-6">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <h3 class="text-lg font-semibold">Finishers by country (share of total)</h3>
+        <select id="treemapYear" class="px-3 py-1 rounded border border-slate-300 text-sm">
+          <option value="this">This year</option>
+          <option value="last">Last year</option>
+        </select>
+      </div>
+      <canvas id="chart-treemap" height="160"></canvas>
+      <p class="caption mt-2">Tile size = finishers. Label = country: count (share%). Switch year to compare shapes.</p>
+    </div>
+  </section>
+
+  <footer class="max-w-6xl mx-auto px-6 py-12 text-sm text-slate-500">
+    Built for storytelling; all figures load from CSVs in your GitHub repo.
+  </footer>
+
+<script>
+/* -------------------------- Data sources (GitHub) -------------------------- */
+// Update these if file names/paths change.
+const DATA_BASE = 'https://raw.githubusercontent.com/danaustralia/berlinMarathon/main/support/';
+
+const URL_RUNNERS      = DATA_BASE + 'BM_export_2025.csv';
+const URL_SPLITS       = DATA_BASE + 'BM_export_splits_2025.csv';
+const URL_WEATHER      = DATA_BASE + 'WeatherData.csv';
+const URL_MAP          = DATA_BASE + 'MapCountryData.csv';
+
+// Previous-year (adjust to your filenames)
+const URL_RUNNERS_PREV = DATA_BASE + 'BM_export_2024.csv';
+const URL_SPLITS_PREV  = DATA_BASE + 'BM_export_splits_2024.csv';
+const URL_WEATHER_PREV = DATA_BASE + 'WeatherData_2024.csv';
+
+/* ------------------------------ Helpers ----------------------------------- */
+function parseHMS(s){
+  if(s==null) return null; s=String(s).trim();
+  if(!s || s==='-' || s==='–' || s==='—') return null;
+  const p=s.split(':'); if(p.length!==3) return null;
+  const h=+p[0], m=+p[1], sec=+p[2];
+  if([h,m,sec].some(Number.isNaN)) return null;
+  return h*3600+m*60+sec;
+}
+function fmtHMS(t){
+  if(t==null) return '—';
+  const h=Math.floor(t/3600), m=Math.floor((t%3600)/60), s=Math.floor(t%60);
+  const pad=(x)=>String(x).padStart(2,'0');
+  return pad(h)+':'+pad(m)+':'+pad(s);
+}
+function fmtPct(p){ return (p*100).toFixed(1)+'%'; }
+function median(a){ if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y); const i=Math.floor(b.length/2); return b.length%2?b[i]:Math.floor((b[i-1]+b[i])/2); }
+function ensureChart(ctx,type,data,opt){ if(ctx._chart) ctx._chart.destroy(); ctx._chart=new Chart(ctx,{type,data,options:opt}); return ctx._chart; }
+function toHHmm(input){
+  if(input==null) return null; let s=String(input).trim(); const d=new Date(s);
+  if(!isNaN(d)){ const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0'); return hh+':'+mm; }
+  if(s.includes(':')){ const parts=s.split(':'); if(parts.length>=2){ const hh2=String(parts[0]).padStart(2,'0'); const mm2=String(parts[1]).slice(0,2); return hh2+':'+mm2; } }
+  if(s.length===4 && !isNaN(Number(s))) return s.slice(0,2)+':'+s.slice(2,4);
+  return null;
+}
+function get15Label(hhmm){ if(!hhmm) return null; const H=+hhmm.slice(0,2), M=+hhmm.slice(3,5); if(isNaN(H)||isNaN(M)) return null; const q=Math.floor(M/15)*15; return String(H).padStart(2,'0')+':'+String(q).padStart(2,'0'); }
+function labelStartSlot(min){ const st=Math.floor(min/30)*30, en=st+30; const hhmm=(m)=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); return hhmm(st)+'–'+hhmm(en); }
+function buildTimeBins(list){
+  const b=[0,9000,10800,12600,13500,14400,15300,16200,17100,18000,18900,19800,20700,21600,22500,9e8];
+  const L=['<2:30','2:30–3:00','3:00–3:30','3:30–3:45','3:45–4:00','4:00–4:15','4:15–4:30','4:30–4:45','4:45–5:00','5:00–5:15','5:15–5:30','5:30–5:45','5:45–6:00','6:00–6:15','>6:15'];
+  const c=new Array(L.length).fill(0);
+  for(const s of list){ if(s==null) continue; for(let j=0;j<L.length;j++){ if(s>=b[j]&&s<b[j+1]){ c[j]++; break; } } }
+  return {labels:L,counts:c};
+}
+function setKPIWithDelta(containerId, currentStr, prevStr, improveIsUp){
+  const el=document.getElementById(containerId); if(!el) return;
+  const up = improveIsUp;
+  const cls = up ? 'delta-up' : 'delta-down';
+  const arrow = up ? '▲' : '▼';
+  el.innerHTML = `<span class="text-3xl font-semibold metric">${currentStr}</span>
+                  <span class="delta ${cls}">${arrow} ${prevStr}</span>`;
+}
+
+/* ----------------------------- Boston 2026 -------------------------------- */
+const BQ = {
+  order:['18-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80+'],
+  M:{'18-34':10500,'35-39':10800,'40-44':11100,'45-49':11700,'50-54':12000,'55-59':12600,'60-64':13800,'65-69':14700,'70-74':15600,'75-79':16500,'80+':17400},
+  F:{'18-34':12300,'35-39':12600,'40-44':12900,'45-49':13500,'50-54':13800,'55-59':14400,'60-64':15600,'65-69':16500,'70-74':17400,'75-79':18300,'80+':19200},
+  X:{'18-34':12300,'35-39':12600,'40-44':12900,'45-49':13500,'50-54':13800,'55-59':14400,'60-64':15600,'65-69':16500,'70-74':17400,'75-79':18300,'80+':19200}
+};
+function parseAgeToBracket(s){
+  if(!s) return null; s=String(s).trim(); const n=s.replace('–','-').replace('—','-').toLowerCase();
+  if((n.includes('80') && n.includes('+')) || n.includes('80 and')) return '80+';
+  const parts=n.split('-'); const a=parseInt(parts[0],10);
+  if(!isNaN(a)) return a<=34?'18-34':a<=39?'35-39':a<=44?'40-44':a<=49?'45-49':a<=54?'50-54':a<=59?'55-59':a<=64?'60-64':a<=69?'65-69':a<=74?'70-74':a<=79?'75-79':'80+';
+  return null;
+}
+
+/* ------------------------------ Globals ----------------------------------- */
+let runnerRows=null, splitsRows=null, weatherMap=null, weatherLabels=[];
+let prevRunnerRows=null, prevSplitsRows=null, prevWeatherMap=null;
+let countryMap=null;
+
+/* ------------------------------ Load CSVs --------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  Papa.parse(URL_RUNNERS     ,{download:true,header:true,skipEmptyLines:true,complete:r=>r.data?.length && onRunners(r.data)});
+  Papa.parse(URL_WEATHER     ,{download:true,header:true,skipEmptyLines:true,complete:r=>r.data?.length && onWeather(r.data)});
+  Papa.parse(URL_SPLITS      ,{download:true,header:true,skipEmptyLines:true,complete:r=>r.data?.length && onSplits(r.data)});
+  Papa.parse(URL_MAP         ,{download:true,header:true,skipEmptyLines:true,complete:r=>r.data?.length && onMap(r.data)});
+
+  // previous year (optional)
+  Papa.parse(URL_RUNNERS_PREV,{download:true,header:true,skipEmptyLines:true,complete:r=>prevRunnerRows=r.data||[]});
+  Papa.parse(URL_SPLITS_PREV ,{download:true,header:true,skipEmptyLines:true,complete:r=>prevSplitsRows=r.data||[]});
+  Papa.parse(URL_WEATHER_PREV,{download:true,header:true,skipEmptyLines:true,complete:r=>{
+    prevWeatherMap = buildWeatherMap(r.data||[]);
+  }});
+});
+
+function buildWeatherMap(rows){
+  if(!rows||!rows.length) return null;
+  const headers=Object.keys(rows[0]||{}).reduce((a,k)=>{a[k.toLowerCase()]=k;return a;},{}); 
+  const tCol=headers['time']||headers['datetime']||headers['timestamp']||headers['date']||headers['hhmm'];
+  const tempCol=headers['temperature_c']||headers['temp_c']||headers['temperature']||headers['temp'];
+  const feelCol=headers['feelslike_c']||headers['feelslike']||headers['apparent_temp_c']||headers['apparenttemperature'];
+  const map={};
+  for(const r of rows){
+    const label=toHHmm(r[tCol]); if(!label) continue;
+    const tVal=tempCol!=null? Number(String(r[tempCol]).replace(',','.')): NaN;
+    const fVal=feelCol!=null? Number(String(r[feelCol]).replace(',','.')): NaN;
+    if(!map[label]) map[label]={t:null,f:null};
+    if(!Number.isNaN(tVal)) map[label].t=tVal;
+    if(!Number.isNaN(fVal)) map[label].f=fVal;
+  }
+  return map;
+}
+
+/* -------------------------- KPI / YoY helpers ----------------------------- */
+function computeKPIs(rows){
+  if(!rows || !rows.length) return null;
+  const cols=Object.keys(rows[0]||{}); const find=(cands)=>cols.find(c=>cands.includes(c.toLowerCase()))||null;
+  const colTime = find(['timetotal','time_total','finishnetto','nettime','nett_time','net']);
+  const colStatus=find(['racestatus','race_status','status']);
+  const colGender=find(['gender','sex']);
+  const colStart= find(['starttimenet','start_time_net','starttime_net']);
+
+  let total=0, finished=0, under4=0, dsq=0; const times=[];
+  const startSlots={};
+  for(const r of rows){
+    total++;
+    if(colTime){ const tt=String(r[colTime]||'').trim().toUpperCase(); if(tt==='DSQ') dsq++; }
+    const t=colTime?parseHMS(r[colTime]):null;
+    const st=colStatus?String(r[colStatus]||'').toLowerCase().trim():'';
+    const fin= st ? st.startsWith('finis') : (t!=null);
+    if(fin) finished++;
+    if(t!=null){ times.push(t); if(t<14400) under4++; }
+    const sn=colStart?parseHMS(r[colStart]):null;
+    if(sn!=null){ const slot=labelStartSlot(Math.floor(sn/60)); startSlots[slot]=(startSlots[slot]||0)+1; }
+  }
+  return {
+    total, finished, finishRate: total? finished/total : 0,
+    medianTime: median(times),
+    under4Rate: total? under4/total : 0,
+    dsq, startSlots
+  };
+}
+
+function computeBQ(rows){
+  if(!rows || !rows.length) return { totalBQ:0, finishedCount:0, byBracket:{} };
+  const cols=Object.keys(rows[0]||{}); const find=(cands)=>cols.find(c=>cands.includes(c.toLowerCase()))||null;
+  const colTime = find(['timetotal','time_total','finishnetto','nettime','nett_time','net']);
+  const colStatus=find(['racestatus','race_status','status']);
+  const colGender=find(['gender','sex']);
+  const colAge  = find(['agegroup','age_class','age','ageclass']);
+
+  const byBracket={};
+  let totalBQ=0, finishedCount=0;
+
+  for(const r of rows){
+    const t=colTime?parseHMS(r[colTime]):null;
+    const st=colStatus?String(r[colStatus]||'').toLowerCase().trim():'';
+    const fin= st ? st.startsWith('finis') : (t!=null);
+    if(fin) finishedCount++;
+    if(!fin || t==null) continue;
+
+    let g=colGender?String(r[colGender]||'').trim().toUpperCase():'';
+    if(g==='W') g='F'; if(!(g==='M'||g==='F'||g==='X')) continue;
+    const br=parseAgeToBracket(colAge?String(r[colAge]||''):null);
+    if(!br || BQ[g][br]==null) continue;
+
+    if(t<=BQ[g][br]){ totalBQ++; if(!byBracket[br]) byBracket[br]={M:0,F:0,X:0}; byBracket[br][g]++; }
+  }
+  return { totalBQ, finishedCount, byBracket };
+}
+
+/* ------------------------------ Runners CSV ------------------------------- */
+function onRunners(rows){
+  runnerRows = rows;
+  if(!rows.length) return;
+
+  // Compute KPIs (this + prev if available)
+  const curr = computeKPIs(runnerRows);
+  const prev = computeKPIs(prevRunnerRows||[]);
+
+  // Write story highlight
+  const story=[];
+  story.push(`We counted ${curr.total.toLocaleString()} registered runners; ${curr.finished.toLocaleString()} finished (${fmtPct(curr.finishRate)}).`);
+  story.push(`Median finish landed at ${fmtHMS(curr.medianTime)}; ${(curr.under4Rate*100).toFixed(1)}% finished under 4 hours.`);
+  document.getElementById('story-highlights').textContent = story.join(' ');
+
+  // KPIs base text
+  document.getElementById('kpi-total').innerHTML        = `<span class="text-3xl font-semibold metric">${curr.total.toLocaleString()}</span>`;
+  document.getElementById('kpi-finished').innerHTML     = `<span class="text-3xl font-semibold metric">${curr.finished.toLocaleString()}</span>`;
+  document.getElementById('kpi-finish-rate').innerHTML  = `<span class="text-3xl font-semibold metric">${fmtPct(curr.finishRate)}</span>`;
+  document.getElementById('kpi-median').innerHTML       = `<span class="text-3xl font-semibold metric">${fmtHMS(curr.medianTime)}</span>`;
+  document.getElementById('kpi-under4').innerHTML       = `<span class="text-3xl font-semibold metric">${fmtPct(curr.under4Rate)}</span>`;
+  document.getElementById('kpi-dsq').innerHTML          = `<span class="text-3xl font-semibold metric">${curr.dsq.toLocaleString()}</span>`;
+
+  // BQ for cards + chart
+  const bqThis = computeBQ(runnerRows);
+  const bqPrev = computeBQ(prevRunnerRows||[]);
+  const bqRateThis = bqThis.finishedCount ? bqThis.totalBQ/bqThis.finishedCount : 0;
+  document.getElementById('kpi-bqcount').innerHTML = `<span class="text-3xl font-semibold metric">${bqThis.totalBQ.toLocaleString()}</span>`;
+  document.getElementById('kpi-bqrate').innerHTML  = `<span class="text-3xl font-semibold metric">${fmtPct(bqRateThis)}</span>`;
+
+  // KPI deltas if prev exists
+  if(prev && prev.total){
+    setKPIWithDelta('kpi-total',       curr.total.toLocaleString(),        prev.total.toLocaleString(),        curr.total >= prev.total);
+    setKPIWithDelta('kpi-finished',    curr.finished.toLocaleString(),     prev.finished.toLocaleString(),     curr.finished >= prev.finished);
+    setKPIWithDelta('kpi-finish-rate', fmtPct(curr.finishRate),            fmtPct(prev.finishRate),            curr.finishRate >= prev.finishRate);
+    setKPIWithDelta('kpi-median',      fmtHMS(curr.medianTime),            fmtHMS(prev.medianTime),            curr.medianTime <= prev.medianTime); // faster is "up"
+    setKPIWithDelta('kpi-under4',      fmtPct(curr.under4Rate),            fmtPct(prev.under4Rate),            curr.under4Rate >= prev.under4Rate);
+    setKPIWithDelta('kpi-dsq',         curr.dsq.toLocaleString(),          prev.dsq.toLocaleString(),          curr.dsq <= prev.dsq);
+
+    // BQ deltas
+    const bqRatePrev = bqPrev.finishedCount ? bqPrev.totalBQ/bqPrev.finishedCount : 0;
+    setKPIWithDelta('kpi-bqcount',     bqThis.totalBQ.toLocaleString(),    bqPrev.totalBQ.toLocaleString(),    bqThis.totalBQ >= bqPrev.totalBQ);
+    setKPIWithDelta('kpi-bqrate',      fmtPct(bqRateThis),                 fmtPct(bqRatePrev),                 bqRateThis >= bqRatePrev);
+  }
+
+  /* ---------- Status & Gender 100% stacked (two bars: this/last) ---------- */
+  function stack100(rows){
+    const cols=Object.keys(rows[0]||{}); const f=(names)=>cols.find(c=>names.includes(c.toLowerCase()))||null;
+    const colStatus=f(['racestatus','race_status','status']);
+    const colGender=f(['gender','sex']);
+    const colTime=f(['timetotal','time_total','finishnetto','nettime','nett_time','net']);
+    const status={};
+    const gender={};
+    for(const r of rows){
+      // status
+      const t=colTime?parseHMS(r[colTime]):null;
+      const stStr=colStatus?String(r[colStatus]||'').toLowerCase().trim():'';
+      const fin= stStr ? stStr.startsWith('finis') : (t!=null);
+      const lab=fin?'Finished':(stStr? stStr[0].toUpperCase()+stStr.slice(1):'Unknown');
+      status[lab]=(status[lab]||0)+1;
+      // gender
+      let g=colGender?String(r[colGender]||'').trim().toUpperCase():'';
+      if(g==='W') g='F'; g=(g==='M'||g==='F'||g==='X')?g:'Other';
+      gender[g]=(gender[g]||0)+1;
+    }
+    const tot = rows.length || 1;
+    const statusPct = Object.fromEntries(Object.entries(status).map(([k,v])=>[k, v/tot*100]));
+    const genderPct = Object.fromEntries(Object.entries(gender).map(([k,v])=>[k, v/tot*100]));
+    return { statusPct, genderPct };
+  }
+
+  const thisD = stack100(runnerRows);
+  const lastD = (prevRunnerRows?.length)? stack100(prevRunnerRows) : null;
+
+  // Status chart
+  {
+    const labels = Array.from(new Set([
+      ...Object.keys(thisD.statusPct),
+      ...(lastD? Object.keys(lastD.statusPct) : [])
+    ])).sort((a,b)=> (a==='Finished'?-1:(b==='Finished'?1:a.localeCompare(b))));
+    const datasets=[];
+    // Build stacked bars for "This year" and "Last year" as grouped stacks
+    const dataThis = labels.map(l=> thisD.statusPct[l]||0);
+    const dataLast = labels.map(l=> lastD? (lastD.statusPct[l]||0) : 0);
+    ensureChart(document.getElementById('chart-status').getContext('2d'),'bar',{
+      labels: ['This year','Last year'],
+      datasets: labels.map((lab,i)=>({
+        label: lab,
+        data: [dataThis[i], dataLast[i]],
+        stack:'st'
+      }))
+    },{
+      responsive:true,
+      scales:{ x:{ stacked:true }, y:{ stacked:true, max:100, ticks:{ callback:v=>v+'%' } } }
+    });
+  }
+
+  // Gender chart
+  {
+    const labels = Array.from(new Set([
+      ...Object.keys(thisD.genderPct),
+      ...(lastD? Object.keys(lastD.genderPct) : [])
+    ])).sort();
+    const dataThis = labels.map(l=> thisD.genderPct[l]||0);
+    const dataLast = labels.map(l=> lastD? (lastD.genderPct[l]||0) : 0);
+    ensureChart(document.getElementById('chart-gender').getContext('2d'),'bar',{
+      labels: ['This year','Last year'],
+      datasets: labels.map((lab,i)=>({
+        label: lab,
+        data: [dataThis[i], dataLast[i]],
+        stack:'g'
+      }))
+    },{
+      responsive:true,
+      scales:{ x:{ stacked:true }, y:{ stacked:true, max:100, ticks:{ callback:v=>v+'%' } } }
+    });
+  }
+
+  /* ------------------- Start windows: overlay last year ------------------- */
+  function startSlotsFrom(rows){
+    const cols=Object.keys(rows[0]||{}); const f=(names)=>cols.find(c=>names.includes(c.toLowerCase()))||null;
+    const colStart= f(['starttimenet','start_time_net','starttime_net']);
+    const slots={};
+    for(const r of rows){
+      const sn=colStart?parseHMS(r[colStart]):null;
+      if(sn!=null){ const slot=labelStartSlot(Math.floor(sn/60)); slots[slot]=(slots[slot]||0)+1; }
+    }
+    return slots;
+  }
+  const sThis = curr.startSlots;
+  const sPrev = prev?.startSlots || {};
+  const sLabels = Array.from(new Set([...Object.keys(sThis), ...Object.keys(sPrev)])).sort((a,b)=>a.localeCompare(b));
+  ensureChart(document.getElementById('chart-start').getContext('2d'),'bar',{
+    labels:sLabels,
+    datasets:[
+      {label:'Starters (this year)', data:sLabels.map(l=>sThis[l]||0)},
+      {label:'Last year', data:sLabels.map(l=>sPrev[l]||0), type:'line', borderDash:[5,4], tension:.2, pointRadius:1}
+    ]
+  },{
+    responsive:true,
+    scales:{ x:{ ticks:{ autoSkip:false, maxRotation:70, minRotation:70 } } }
+  });
+
+  /* ------------------- Finish histogram: overlay last --------------------- */
+  const timeCol = Object.keys(rows[0]||{}).find(c=>['timetotal','time_total','finishnetto','nettime','nett_time','net'].includes(c.toLowerCase()));
+  const times = (timeCol? rows.map(r=>parseHMS(r[timeCol])):[]).filter(v=>v!=null);
+  const thisBins = buildTimeBins(times);
+  let prevCounts=null;
+  if(prevRunnerRows?.length){
+    const prevTimeCol = Object.keys(prevRunnerRows[0]||{}).find(c=>['timetotal','time_total','finishnetto','nettime','nett_time','net'].includes(c.toLowerCase()));
+    const prevTimes = (prevTimeCol? prevRunnerRows.map(r=>parseHMS(r[prevTimeCol])):[]).filter(v=>v!=null);
+    prevCounts = buildTimeBins(prevTimes).counts;
+  }
+  ensureChart(document.getElementById('chart-time').getContext('2d'),'bar',{
+    labels:thisBins.labels,
+    datasets:[
+      {label:'Finishers (this year)', data:thisBins.counts},
+      ...(prevCounts? [{label:'Last year', data:prevCounts, type:'line', borderDash:[5,4], tension:.2, pointRadius:1}]:[])
+    ]
+  },{
+    responsive:true,
+    scales:{ x:{ ticks:{ autoSkip:false } } }
+  });
+
+  // Countries + Age + Treemap + BQ chart
+  renderCountryAgeBQ(rows, prevRunnerRows||[]);
+}
+
+/* -------------------------------- Weather CSV ------------------------------ */
+function onWeather(rows){
+  weatherMap = buildWeatherMap(rows);
+  weatherLabels = weatherMap ? Object.keys(weatherMap).sort((a,b)=>a.localeCompare(b)) : [];
+  if(weatherMap){
+    const temps = weatherLabels.map(l=>weatherMap[l].t);
+    const feels = weatherLabels.map(l=>weatherMap[l].f);
+    ensureChart(document.getElementById('chart-weather').getContext('2d'),'line',
+      {labels:weatherLabels,datasets:[{label:'Temperature (°C)',data:temps,tension:.3,pointRadius:2},{label:'Feels like (°C)',data:feels,tension:.3,pointRadius:2}]},
+      {responsive:true,scales:{y:{title:{display:true,text:'°C'}}}});
+  }
+  // If we already have splits/runners, draw segment pace chart
+  const base = (splitsRows?.length? splitsRows : (runnerRows||[]));
+  if(base.length) renderSegmentPace(base);
+  // refresh flow overlay
+  updateCheckpointOptions();
+  renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish');
+}
+
+/* --------------------------------- Splits CSV ------------------------------ */
+function onSplits(rows){
+  splitsRows = rows;
+  updateCheckpointOptions();
+  renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish');
+  if(weatherMap) renderSegmentPace(splitsRows);
+}
+
+/* -------------------------------- Mapping CSV ------------------------------ */
+function onMap(rows){
+  const headers=Object.keys(rows[0]||{}).reduce((a,k)=>{a[k.toLowerCase()]=k;return a;},{}); 
+  const codeCol=headers['code']||headers['countrycode']||headers['ioc']||headers['alpha3'];
+  const countryCol=headers['country']||headers['name'];
+  const contCol=headers['continent']||headers['region'];
+  const map={};
+  for(const r of rows){
+    const code=codeCol?String(r[codeCol]||'').trim().toUpperCase():'';
+    if(!code) continue;
+    const country=countryCol?String(r[countryCol]||'').trim():code;
+    const cont=contCol?String(r[contCol]||'').trim():'';
+    map[code]={Country:country,Continent:cont};
+  }
+  countryMap=map;
+}
+
+/* ------------------------ Countries, Age, BQ, Treemap ---------------------- */
+function renderCountryAgeBQ(rowsThis, rowsPrev){
+  if(!rowsThis.length) return;
+  const getCol=(rows,names)=>{ const cols=Object.keys(rows[0]||{}); return cols.find(c=>names.includes(c.toLowerCase()))||null; };
+
+  /* -------- Top-20 countries stacked (this year only for clarity) --------- */
+  const colTimeT=getCol(rowsThis,['timetotal','time_total','finishnetto','nettime','nett_time','net']);
+  const colStatusT=getCol(rowsThis,['racestatus','race_status','status']);
+  const colCountryT=getCol(rowsThis,['country','nation','countryname']);
+  const colCodeT=getCol(rowsThis,['countrycode','nationcode','code','ioc','alpha3']);
+
+  const countriesByStatus={}, countryTotals={};
+  for(const r of rowsThis){
+    let cname='Unknown';
+    if(colCountryT && r[colCountryT]) cname=String(r[colCountryT]).trim();
+    else if(colCodeT && r[colCodeT]){
+      const code=String(r[colCodeT]).trim().toUpperCase();
+      cname=(countryMap&&countryMap[code])?countryMap[code].Country:(code||'Unknown');
+    }
+    const t=colTimeT?parseHMS(r[colTimeT]):null;
+    const st=colStatusT?String(r[colStatusT]||'').toLowerCase().trim():'';
+    const lab=(st? (st.startsWith('finis')?'Finished':st[0].toUpperCase()+st.slice(1)) : (t!=null ? 'Finished':'Unknown'));
+    if(!countriesByStatus[cname]) countriesByStatus[cname]={};
+    countriesByStatus[cname][lab]=(countriesByStatus[cname][lab]||0)+1;
+    countryTotals[cname]=(countryTotals[cname]||0)+1;
+  }
+  const top=Object.entries(countryTotals).sort((a,b)=>b[1]-a[1]).slice(0,20).map(d=>d[0]);
+  const statusSet=new Set(); for(const c of top){ for(const k of Object.keys(countriesByStatus[c]||{})) statusSet.add(k); }
+  const statusList=Array.from(statusSet).sort((a,b)=> (a==='Finished'?-1:(b==='Finished'?1: a.localeCompare(b))));
+  const ds=statusList.map(st=>({label:st,data:top.map(c=> (countriesByStatus[c]?.[st]||0)),stack:'cs'}));
+  ensureChart(document.getElementById('chart-country-stack').getContext('2d'),'bar',
+    {labels:top,datasets:ds},{responsive:true,indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}}});
+
+  /* ------------------- Age stacked (Finished vs DNF) ---------------------- */
+  const colAgeT=getCol(rowsThis,['agegroup','age_class','age','ageclass']);
+  const colTime=getCol(rowsThis,['timetotal','time_total','finishnetto','nettime','nett_time','net']);
+  const colStatus=getCol(rowsThis,['racestatus','race_status','status']);
+  const agesFin={}, agesDNF={}, allAges={};
+  for(const r of rowsThis){
+    let ag=colAgeT? r[colAgeT] : null; if(!ag) continue; ag=String(ag).trim(); if(!ag) continue; allAges[ag]=true;
+    const t=colTime?parseHMS(r[colTime]):null; const stStr=colStatus?String(r[colStatus]||'').toLowerCase().trim():'';
+    const fin=stStr ? stStr.startsWith('finis') : (t!=null);
+    if(fin) agesFin[ag]=(agesFin[ag]||0)+1; else agesDNF[ag]=(agesDNF[ag]||0)+1;
+  }
+  const labels=Object.keys(allAges).sort();
+  ensureChart(document.getElementById('chart-age').getContext('2d'),'bar',
+    {labels,datasets:[{label:'Finished',data:labels.map(k=>agesFin[k]||0),stack:'age'},{label:'Did not finish',data:labels.map(k=>agesDNF[k]||0),stack:'age'}]},
+    {responsive:true,scales:{x:{stacked:true},y:{stacked:true}}});
+
+  /* --------------------- BQ stacked grouped by year ----------------------- */
+  const bqThis = computeBQ(rowsThis).byBracket;
+  const bqPrev = computeBQ(rowsPrev||[]).byBracket;
+  const order=BQ.order;
+  const dM=order.map(br=>(bqThis[br]?.M)||0), dF=order.map(br=>(bqThis[br]?.F)||0), dX=order.map(br=>(bqThis[br]?.X)||0);
+  const pM=order.map(br=>(bqPrev[br]?.M)||0), pF=order.map(br=>(bqPrev[br]?.F)||0), pX=order.map(br=>(bqPrev[br]?.X)||0);
+  ensureChart(document.getElementById('chart-bqage').getContext('2d'),'bar',
+    {labels:order,datasets:[
+      {label:'Men (this)', data:dM, stack:'this'},
+      {label:'Women (this)', data:dF, stack:'this'},
+      {label:'Non-binary (this)', data:dX, stack:'this'},
+      ...(rowsPrev?.length? [
+        {label:'Men (last)', data:pM, stack:'last', borderDash:[5,3]},
+        {label:'Women (last)', data:pF, stack:'last', borderDash:[5,3]},
+        {label:'Non-binary (last)', data:pX, stack:'last', borderDash:[5,3]},
+      ]:[])
+    ]},
+    {responsive:true,scales:{x:{stacked:true},y:{stacked:true}}});
+
+  /* ----------------------- Treemap (year toggle) -------------------------- */
+  const select=document.getElementById('treemapYear');
+  const render=(year)=>{
+    const rows = (year==='last' && rowsPrev?.length)? rowsPrev : rowsThis;
+    const cT=getCol(rows,['country','nation','countryname']);
+    const cC=getCol(rows,['countrycode','nationcode','code','ioc','alpha3']);
+    const tC=getCol(rows,['timetotal','time_total','finishnetto','nettime','nett_time','net']);
+    const sC=getCol(rows,['racestatus','race_status','status']);
+    const finByCountry={};
+    for(const r of rows){
+      const t=tC?parseHMS(r[tC]):null;
+      const st=sC?String(r[sC]||'').toLowerCase().trim():'';
+      const fin=st ? st.startsWith('finis') : (t!=null);
+      if(!fin) continue;
+      let cname='Unknown';
+      if(cT && r[cT]) cname=String(r[cT]).trim();
+      else if(cC && r[cC]){
+        const code=String(r[cC]).trim().toUpperCase();
+        cname=(countryMap&&countryMap[code])?countryMap[code].Country:(code||'Unknown');
+      }
+      finByCountry[cname]=(finByCountry[cname]||0)+1;
+    }
+    const totalFin = Object.values(finByCountry).reduce((a,b)=>a+b,0)||1;
+    const tree = Object.entries(finByCountry).map(([country,value])=>({country,value}));
+    const ctx=document.getElementById('chart-treemap').getContext('2d');
+    ensureChart(ctx,'treemap',{
+      datasets:[{
+        tree, groups:['country'], key:'value',
+        labels:{ display:true, formatter:(c)=>{ const raw=c.raw; if(!raw) return ''; const val=(raw.v??(raw._data?.value??0)); const pct=Math.round((val/totalFin)*100); return `${raw._data.country}: ${val} (${pct}%)`; }, font:{size:10} }
+      }]
+    },{ responsive:true, plugins:{ legend:{display:false}, tooltip:{callbacks:{ label:(c)=>{ const raw=c.raw; const val=(raw.v??(raw._data?.value??0)); const pct=Math.round((val/totalFin)*100); return `${raw._data.country}: ${val} (${pct}%)`; } } }});
+  };
+  select.onchange=()=>render(select.value);
+  render(select.value);
+}
+
+/* ------------------------ Flow vs Weather (15-min) ------------------------- */
+function buildCheckpointMap(rows){
+  if(!rows||!rows.length) return {};
+  const cols=Object.keys(rows[0]||{});
+  const has=(col)=>cols.some(c=>c.toLowerCase()===col);
+  const pairs=[
+    ['5km','5kmtimeofday'],['10km','10kmtimeofday'],['15km','15kmtimeofday'],['20km','20kmtimeofday'],
+    ['Half','halftimeofday'],['Half','half_time_of_day'],['Half','halbtimeofday'],
+    ['25km','25kmtimeofday'],['30km','30kmtimeofday'],['35km','35kmtimeofday'],['40km','40kmtimeofday'],['Finish','finishtimeofday']
+  ];
+  const map={}; for(const [key,cand] of pairs){ if(has(cand)) map[key]=cols.find(c=>c.toLowerCase()===cand); }
+  return map;
+}
+function updateCheckpointOptions(){
+  const rows=(splitsRows&&splitsRows.length)?splitsRows:(runnerRows||[]);
+  if(!rows.length) return;
+  const cpMap=buildCheckpointMap(rows);
+  const sel=document.getElementById('checkpointSelect'); if(!sel) return;
+  sel.innerHTML='';
+  const order=['5km','10km','15km','20km','Half','25km','30km','35km','40km','Finish'];
+  for(const k of order){ if(cpMap[k]){ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); } }
+  sel.onchange=()=>renderFlowWeatherFor(sel.value);
+}
+function renderFlowWeatherFor(cp){
+  const rows=(splitsRows&&splitsRows.length)?splitsRows:(runnerRows||[]);
+  if(!rows.length) return;
+  const cpMap=buildCheckpointMap(rows); const col=cpMap[cp]; if(!col) return;
+  const counts={};
+  for(const r of rows){ const v=r[col]; if(!v) continue; const b=get15Label(toHHmm(v)); if(!b) continue; counts[b]=(counts[b]||0)+1; }
+  let labels=Object.keys(counts).sort((a,b)=>a.localeCompare(b));
+  const temp=[], feels=[];
+  if(weatherMap){
+    const all={}; for(const l of labels) all[l]=true; for(const w of weatherLabels) all[w]=true;
+    labels=Object.keys(all).sort((a,b)=>a.localeCompare(b));
+    for(const l of labels){ const w=weatherMap[l]; temp.push(w&&w.t!=null?w.t:null); feels.push(w&&w.f!=null?w.f:null); }
+  }
+  const vals=labels.map(l=>counts[l]||0);
+  ensureChart(document.getElementById('chart-flow-weather').getContext('2d'),'bar',
+    {labels,datasets:[{label:'Runners (15-min)',data:vals,yAxisID:'y'},{label:'Temperature (°C)',data:temp,type:'line',yAxisID:'y1',tension:.25,pointRadius:2}]},
+    {responsive:true,scales:{y:{title:{display:true,text:'Runners'}},y1:{position:'right',title:{display:true,text:'°C'},grid:{drawOnChartArea:false}}}});
+}
+
+/* ---------- Segment median pace (mm:ss per km) + °C overlay (YoY) --------- */
+function renderSegmentPace(rows){
+  if(!rows || !rows.length) return;
+
+  const cols = Object.keys(rows[0] || {});
+  const find = (cands) => cols.find(c => cands.includes(c.toLowerCase())) || null;
+
+  // Identify per-segment pace columns
+  function findPaceCols(_rows){
+    const out = {};
+    const _cols = Object.keys(_rows[0]||{});
+    for(const c of _cols){
+      const lc = c.toLowerCase();
+      if(lc.includes('minperkm') || lc.includes('pace')){
+        const i = lc.indexOf('km');
+        if(i > 0){
+          let j = i - 1, digits = '';
+          while(j >= 0 && /[0-9]/.test(lc[j])){ digits = lc[j] + digits; j--; }
+          const end = parseInt(digits, 10);
+          if(!Number.isNaN(end) && end >= 5 && end <= 40 && end % 5 === 0){
+            const start = end - 5;
+            const label = (start === 0 ? '0-5km' : `${start}-${end}km`);
+            out[label] = c;
+          }
+        }
+      }
+    }
+    return out;
+  }
+  function parsePace(s){
+    if(s == null) return null; s = String(s).trim();
+    if(!s || s==='-' || s==='—') return null;
+    if(s.includes(':')){ const [mm,ss]=s.split(':'); const M=parseInt(mm,10), S=parseInt(ss,10); if(!Number.isNaN(M)&&!Number.isNaN(S)) return M*60+S; }
+    const dec=parseFloat(s.replace(',','.')); return Number.isNaN(dec)?null:Math.round(dec*60);
+  }
+  function medPaceFor(rows, labelList){
+    if(!rows?.length) return labelList.map(_=>null);
+    const map = findPaceCols(rows);
+    return labelList.map(lab=>{
+      const col = map[lab]; if(!col) return null;
+      const vals=[]; for(const r of rows){ const v=parsePace(r[col]); if(v!=null) vals.push(v); }
+      return median(vals);
+    });
+  }
+
+  // Labels from current rows
+  const paceCols = findPaceCols(rows);
+  const labels = Object.keys(paceCols).sort((a,b)=>parseInt(a)-parseInt(b));
+  if(!labels.length) return;
+
+  const medSecThis = medPaceFor(rows, labels);
+  const medSecPrev = medPaceFor(prevSplitsRows, labels); // align to same label list
+
+  // Temperature for segment ends (this year)
+  const cpMap = buildCheckpointMap(rows);
+  function modeLabelFor(cp){
+    const col = cpMap[cp]; if(!col) return null;
+    const counts={}; for(const r of rows){ const v=r[col]; if(!v) continue; const b=get15Label(toHHmm(v)); if(!b) continue; counts[b]=(counts[b]||0)+1; }
+    let best=null,bn=-1; for(const k in counts){ if(counts[k]>bn){ best=k; bn=counts[k]; } } return best;
+  }
+  const temps = labels.map(lab=>{
+    const end=parseInt(lab.split('-')[1],10);
+    const cp=(end>=40)?'40km':(end+'km');
+    const slot=modeLabelFor(cp);
+    const t=(weatherMap && slot && weatherMap[slot]) ? weatherMap[slot].t : null;
+    return t;
+  });
+
+  const tVals=temps.filter(v=>v!=null && !Number.isNaN(v));
+  const y1Scale={position:'right',title:{display:true,text:'°C'},grid:{drawOnChartArea:false}};
+  if(tVals.length){ y1Scale.suggestedMin=Math.floor(Math.min(...tVals))-1; y1Scale.suggestedMax=Math.ceil(Math.max(...tVals))+1; }
+
+  const fmtMMSS=(sec)=>{ if(sec==null||isNaN(sec)) return '—'; const t=Math.round(sec), mm=Math.floor(t/60), ss=t-mm*60; return mm+':'+String(ss).padStart(2,'0'); };
+
+  ensureChart(document.getElementById('chart-seg-pace').getContext('2d'),'line',{
+    labels,
+    datasets:[
+      {label:'Pace (this, min/km)', data:medSecThis, yAxisID:'y', tension:.25},
+      ...(prevSplitsRows?.length? [{label:'Pace (last, min/km)', data:medSecPrev, yAxisID:'y', borderDash:[5,4], tension:.25}]:[]),
+      {label:'Temperature (°C)', data:temps, yAxisID:'y1', tension:.25, pointRadius:2}
+    ]
+  },{
+    responsive:true,
+    plugins:{ tooltip:{ callbacks:{ label:(ctx)=> {
+      const lbl=ctx.dataset.label||''; if(lbl.includes('Pace')){ const sec=ctx.parsed.y; if(sec==null) return `${lbl}: —`; const mm=Math.floor(sec/60), ss=sec-mm*60; return `${lbl}: ${mm}:${String(ss).padStart(2,'0')}/km`; }
+      return `${lbl}: ${ctx.parsed.y==null?'—':ctx.parsed.y+'°C'}`;
+    }}}},
+    scales:{ y:{ title:{display:true,text:'min/km'}, ticks:{ callback:(v)=>{ const mm=Math.floor(v/60), ss=v-mm*60; return mm+':'+String(ss).padStart(2,'0'); } } }, y1:y1Scale }
+  });
+}
+</script>
+</body>
+</html>

@@ -21,51 +21,8 @@
     .grid-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1rem; }
     .caption { color:#6b7280; font-size:.8rem; }
   </style>
-
-
-<!-- === Polished head additions === -->
-<meta name="theme-color" content="#0ea5e9">
-<meta name="description" content="Interactive Marathon Insights Dashboard">
-<meta property="og:title" content="Berlin Marathon — Insights">
-<meta property="og:description" content="Checkpoint flows, weather overlay, finishers by country & region, and more.">
-<meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230ea5e9'/%3E%3Cstop offset='1' stop-color='%237158fa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='64' cy='64' r='62' fill='url(%23g)'/%3E%3Cpath d='M86 36a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM45 58l18-8 9 7-10 10 8 8-6 13-9-9-12 6 5-13-8-7 5-7zm33 15 10-6 9 7-12 7-7-8z' fill='white'/%3E%3C/svg%3E" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  html { scroll-behavior: smooth; }
-  body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
-  .card { background: #ffffff; border-radius: 1rem; box-shadow: 0 8px 20px rgba(2,8,23,.06); }
-  .metric { letter-spacing: 0.2px; }
-  .brand-gradient { background-image: linear-gradient(135deg, #0ea5e9, #7158fa); }
-</style>
-
 </head>
 <body class="min-h-screen">
-
-  <!-- === Professional Header === -->
-  <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/70 border-b border-slate-200/70 dark:border-slate-700/40 backdrop-blur">
-    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl brand-gradient grid place-items-center ring-1 ring-white/40 shadow">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M13 5a3 3 0 1 0 6 0 3 3 0 0 0-6 0ZM8 10l5-2 3 2-3 3 2 2-2 5-3-3-4 2 2-5-3-2 3-2z"/>
-          </svg>
-        </div>
-        <div>
-          <h1 class="text-lg font-semibold leading-tight">Berlin Marathon — Insights</h1>
-          <p class="text-xs text-slate-500 -mt-0.5">City Marathon Dashboard</p>
-        </div>
-      </div>
-      <nav class="hidden md:flex items-center gap-6 text-sm text-slate-600 dark:text-slate-300">
-        <a href="#kpigrid" class="hover:text-sky-600">Overview</a>
-        <a href="#charts" class="hover:text-sky-600">Charts</a>
-        <a href="#geos" class="hover:text-sky-600">Countries & Regions</a>
-        <a href="index_compare_yoy.html" class="hover:text-sky-600">Year over Year</a>
-      </nav>
-      </div>
-  </header>
   <!-- HERO -->
   <header class="max-w-6xl mx-auto px-6 pt-10 pb-6">
     <h1 class="text-4xl font-extrabold tracking-tight">Berlin Marathon — What the numbers say</h1>
@@ -78,7 +35,7 @@
   </header>
 
   <!-- KPI STRIP -->
-  <section id="kpigrid" class="max-w-6xl mx-auto px-6 pb-2">
+  <section class="max-w-6xl mx-auto px-6 pb-2">
     <div class="grid-cards">
       <div class="card p-5">
         <p class="text-sm text-slate-500">Total runners</p>
@@ -132,15 +89,15 @@
   <section class="max-w-6xl mx-auto px-6 pb-2">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="card p-4 mt-6">
-        <h3 class="text-base font-semibold mb-2">Men’s podium</h3>
+        <h3 class="text-base font-semibold mb-2">Men’s podium — country flags</h3>
         <div id="podium-men" class="flex items-center gap-4">
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-men-2" alt="2nd" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">2nd</span>
-          </div>
           <div class="flex flex-col items-center gap-1">
             <img id="flag-men-1" alt="1st" class="w-10 h-7 object-cover rounded shadow" src="" />
             <span class="text-xs text-slate-500">1st</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <img id="flag-men-2" alt="2nd" class="w-10 h-7 object-cover rounded shadow" src="" />
+            <span class="text-xs text-slate-500">2nd</span>
           </div>
           <div class="flex flex-col items-center gap-1">
             <img id="flag-men-3" alt="3rd" class="w-10 h-7 object-cover rounded shadow" src="" />
@@ -149,15 +106,15 @@
         </div>
       </div>
       <div class="card p-4 mt-6">
-        <h3 class="text-base font-semibold mb-2">Women’s podium</h3>
+        <h3 class="text-base font-semibold mb-2">Women’s podium — country flags</h3>
         <div id="podium-women" class="flex items-center gap-4">
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-women-2" alt="2nd" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">2nd</span>
-          </div>
           <div class="flex flex-col items-center gap-1">
             <img id="flag-women-1" alt="1st" class="w-10 h-7 object-cover rounded shadow" src="" />
             <span class="text-xs text-slate-500">1st</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <img id="flag-women-2" alt="2nd" class="w-10 h-7 object-cover rounded shadow" src="" />
+            <span class="text-xs text-slate-500">2nd</span>
           </div>
           <div class="flex flex-col items-center gap-1">
             <img id="flag-women-3" alt="3rd" class="w-10 h-7 object-cover rounded shadow" src="" />
@@ -213,8 +170,7 @@
       Then in the "Median segment pace vs temperature" chart it is possible to note how the weather affected the pace throughout the checkpoints.
       It was also possible to demonstrate the number of runners that passed each checkpoint at times, also displayed in 15 minutes blocks.
     </p>
-    <div id="charts"></div>
-<div class="card p-6 mb-6">
+    <div class="card p-6 mb-6">
       <h3 class="text-lg font-semibold mb-3">Race-day weather (15-minute)</h3>
       <canvas id="chart-weather" height="120"></canvas>
       <p class="caption mt-2">Temperature and “feels like” across the race window.</p>
@@ -270,16 +226,15 @@
       </div>
     </div>
 
-    <div id="geos"></div>
-<div class="card p-6 mt-6">
+    <div class="card p-6 mt-6">
       <h3 class="text-lg font-semibold mb-3">Finishers by country</h3>
       <canvas id="chart-treemap" height="150"></canvas>
       <p class="caption mt-2">Tile size = finishers. Label shows each country’s share of all finishers.</p>
     </div>
     <div class="card p-6 mt-6">
-      <h3 class="text-lg font-semibold mb-3">Finishers by region</h3>
+      <h3 class="text-lg font-semibold mb-3">Finishers by region/continent</h3>
       <canvas id="chart-treemap-continent" height="150"></canvas>
-      <p class="caption mt-2">Tile size = finishers. Colored by region.</p>
+      <p class="caption mt-2">Tile size = finishers. Colored by region/continent.</p>
     </div>
 
   </section>
@@ -453,8 +408,8 @@ function onRunners(rows){
         for (var i=0;i<rows.length;i++){
           const r = rows[i];
           const g = String(r[colGender]||'').trim().toUpperCase();
-          const isF = (g==='F' || g==='FEMALE' || g==='W' || g==='WOMEN' || g==='WOMAN');
-          const isM = (g==='M' || g==='MALE' || g==='MEN' || g==='MAN');
+          const isF = (g==='F' || g==='FEMALE');
+          const isM = (g==='M' || g==='MALE');
           if (wantF ? !isF : !isM) continue;
 
           const t = parseHMS(r[colTime]);
@@ -983,25 +938,5 @@ function renderSegmentPace(rows){
     {responsive:true,plugins:{tooltip:{callbacks:{label:(ctx)=> ctx.datasetIndex===0 ? `${ctx.dataset.label}: ${fmtMMSS(ctx.parsed.y)}` : `${ctx.dataset.label}: ${ctx.parsed.y==null?'—':ctx.parsed.y+'°C'}`}}},scales:{y:{title:{display:true,text:'min/km'},ticks:{callback:(v)=>fmtMMSS(v)}},y1:y1Scale}});
 }
 </script>
-
-  <!-- === Professional Footer === -->
-  <footer class="mt-12 border-t border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40">
-    <div class="max-w-7xl mx-auto px-6 py-8 grid gap-4 md:grid-cols-3 text-sm">
-      <div>
-        <p class="font-semibold text-slate-700 dark:text-slate-200">Berlin Marathon Insights</p>
-        <p class="text-slate-500 dark:text-slate-400">Built for clarity and speed — checkpoint flow, weather overlays, and geographic insights.</p>
-      </div>
-      <div class="text-slate-500 dark:text-slate-400">
-        <p>Data sources: runners, splits, weather, country map.</p>
-        <p>Hosted on <span class="font-medium text-slate-700 dark:text-slate-200">Wasmer</span>.</p>
-      </div>
-      <div class="text-right text-slate-500 dark:text-slate-400">
-        <p>&copy; <span id="yearNow"></span> Marathon Analytics</p>
-        <p><a href="#kpigrid" class="hover:text-sky-600">Back to top ↑</a></p>
-      </div>
-    </div>
-  </footer>
-  <script>document.getElementById('yearNow').textContent = new Date().getFullYear();</script>
-
 </body>
 </html>
