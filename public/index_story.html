@@ -21,57 +21,13 @@
     .grid-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1rem; }
     .caption { color:#6b7280; font-size:.8rem; }
   </style>
-
-
-<!-- === Polished head additions === -->
-<meta name="theme-color" content="#0ea5e9">
-<meta name="description" content="Interactive Marathon Insights Dashboard">
-<meta property="og:title" content="Berlin Marathon — Insights">
-<meta property="og:description" content="Checkpoint flows, weather overlay, finishers by country & region, and more.">
-<meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230ea5e9'/%3E%3Cstop offset='1' stop-color='%237158fa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='64' cy='64' r='62' fill='url(%23g)'/%3E%3Cpath d='M86 36a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM45 58l18-8 9 7-10 10 8 8-6 13-9-9-12 6 5-13-8-7 5-7zm33 15 10-6 9 7-12 7-7-8z' fill='white'/%3E%3C/svg%3E" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  html { scroll-behavior: smooth; }
-  body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
-  .card { background: #ffffff; border-radius: 1rem; box-shadow: 0 8px 20px rgba(2,8,23,.06); }
-  .metric { letter-spacing: 0.2px; }
-  .brand-gradient { background-image: linear-gradient(135deg, #0ea5e9, #7158fa); }
-</style>
-
 </head>
 <body class="min-h-screen">
-
-  <!-- === Professional Header === -->
-  <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/70 border-b border-slate-200/70 dark:border-slate-700/40 backdrop-blur">
-    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl brand-gradient grid place-items-center ring-1 ring-white/40 shadow">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M13 5a3 3 0 1 0 6 0 3 3 0 0 0-6 0ZM8 10l5-2 3 2-3 3 2 2-2 5-3-3-4 2 2-5-3-2 3-2z"/>
-          </svg>
-        </div>
-        <div>
-          <h1 class="text-lg font-semibold leading-tight">Berlin Marathon — Insights</h1>
-          <p class="text-xs text-slate-500 -mt-0.5">City Marathon Dashboard</p>
-        </div>
-      </div>
-      <nav class="hidden md:flex items-center gap-6 text-sm text-slate-600 dark:text-slate-300">
-        <a href="#kpigrid" class="hover:text-sky-600">Overview</a>
-        <a href="#charts" class="hover:text-sky-600">Charts</a>
-        <a href="#geos" class="hover:text-sky-600">Countries & Regions</a>
-        <a href="index_compare_yoy.html" class="hover:text-sky-600">Year over Year</a>
-        <a href="index_story.html" class="hover:text-sky-600">test</a>
-      </nav>
-      </div>
-  </header>
   <!-- HERO -->
   <header class="max-w-6xl mx-auto px-6 pt-10 pb-6">
     <h1 class="text-4xl font-extrabold tracking-tight">Berlin Marathon — What the numbers say</h1>
     <p class="lede mt-4">
-      A quick tour through participation, outcomes, pacing, weather in the Berlin Marathon on 29.09.2024.
+      A quick tour through participation, outcomes, pacing, weather in the Berlin Marathon on 21.09.2025.
       All cards and charts below are drawn from the unofficial results provided on the Berlin Marathon Results page.
       *DSQ numbers may be reviewed at a point since many people finished but had issues with their bibs.
     </p>
@@ -79,7 +35,42 @@
   </header>
 
   <!-- KPI STRIP -->
-  <section id="kpigrid" class="max-w-6xl mx-auto px-6 pb-2">
+  
+<section class="max-w-7xl mx-auto px-6 mt-4 mb-3">
+  <div class="rounded-xl px-4 py-3 bg-gradient-to-r from-sky-50 to-indigo-50 ring-1 ring-slate-200 flex items-center gap-3">
+    <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white ring-1 ring-slate-200">🏆</span>
+    <div class="text-sm">
+      <strong>Berlin Marathon</strong> — a data story in motion.
+      <span class="text-slate-600">Finishers, flow, weather & regions — with year-on-year context.</span>
+    </div>
+    <button id="srcToggle" class="ml-auto text-xs px-2 py-1 rounded-lg ring-1 ring-slate-300 bg-white hover:bg-slate-50">
+      Sources
+    </button>
+  </div>
+</section>
+
+<section class="max-w-7xl mx-auto px-6 -mt-2 mb-2">
+  <div id="statusArea" class="hidden rounded-lg px-3 py-2 bg-amber-50 ring-1 ring-amber-200 text-amber-800 text-sm"></div>
+  <div class="flex flex-wrap gap-3 text-xs text-slate-500 mt-2">
+    <span>Runners: <span id="updated-runners">—</span></span>
+    <span>Splits: <span id="updated-splits">—</span></span>
+    <span>Weather: <span id="updated-weather">—</span></span>
+    <span>Map: <span id="updated-map">—</span></span>
+    <span>History: <span id="updated-history">—</span></span>
+  </div>
+</section>
+
+<section class="max-w-7xl mx-auto px-6 mb-2">
+  <div class="card p-4">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-sm font-semibold text-slate-700">Finishers over time</h3>
+      <span class="text-xs text-slate-500">2014–2025</span>
+    </div>
+    <canvas id="spark-finishers" height="48"></canvas>
+    <p id="spark-empty" class="hidden mt-2 text-xs text-slate-500">No history file found — showing this year’s snapshot only.</p>
+  </div>
+</section>
+<section class="max-w-6xl mx-auto px-6 pb-2">
     <div class="grid-cards">
       <div class="card p-5">
         <p class="text-sm text-slate-500">Total runners</p>
@@ -118,58 +109,8 @@
         <p class="text-sm text-slate-500">Countries represented</p>
         <p id="kpi-countries" class="metric mt-1 text-3xl font-semibold">—</p>
       </div>
-    
-      <div class="card p-5">
-        <p class="text-sm text-slate-500">Fastest time</p>
-        <p id="kpi-fastest" class="metric mt-1 text-3xl font-semibold">—</p>
-      </div>
-      <div class="card p-5">
-        <p class="text-sm text-slate-500">Last place</p>
-        <p id="kpi-lastplace" class="metric mt-1 text-3xl font-semibold">—</p>
-      </div>
     </div>
   </section>
-  
-  <section class="max-w-6xl mx-auto px-6 pb-2">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="card p-4 mt-6">
-        <h3 class="text-base font-semibold mb-2">Men’s podium</h3>
-        <div id="podium-men" class="flex items-center gap-4">
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-men-2" alt="2nd" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">2nd</span>
-          </div>
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-men-1" alt="1st" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">1st</span>
-          </div>
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-men-3" alt="3rd" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">3rd</span>
-          </div>
-        </div>
-      </div>
-      <div class="card p-4 mt-6">
-        <h3 class="text-base font-semibold mb-2">Women’s podium</h3>
-        <div id="podium-women" class="flex items-center gap-4">
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-women-2" alt="2nd" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">2nd</span>
-          </div>
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-women-1" alt="1st" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">1st</span>
-          </div>
-          <div class="flex flex-col items-center gap-1">
-            <img id="flag-women-3" alt="3rd" class="w-10 h-7 object-cover rounded shadow" src="" />
-            <span class="text-xs text-slate-500">3rd</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-
 
   <!-- PARTICIPATION & OUTCOMES -->
   <section class="max-w-6xl mx-auto px-6 pt-6 section">
@@ -214,8 +155,7 @@
       Then in the "Median segment pace vs temperature" chart it is possible to note how the weather affected the pace throughout the checkpoints.
       It was also possible to demonstrate the number of runners that passed each checkpoint at times, also displayed in 15 minutes blocks.
     </p>
-    <div id="charts"></div>
-<div class="card p-6 mb-6">
+    <div class="card p-6 mb-6">
       <h3 class="text-lg font-semibold mb-3">Race-day weather (15-minute)</h3>
       <canvas id="chart-weather" height="120"></canvas>
       <p class="caption mt-2">Temperature and “feels like” across the race window.</p>
@@ -237,11 +177,11 @@
       <canvas id="chart-flow-weather" height="120"></canvas>
       <p class="caption mt-2">How many athletes crossed a checkpoint every 15 minutes, with the matching temperature.</p>
     </div>
-      <div class="card p-6 mt-6">
-        <h3 class="text-lg font-semibold mb-3">Checkpoint flow vs weather — stacked by checkpoint</h3>
-        <canvas id="chart-flow-weather-stacked" height="120"></canvas>
-        <p class="caption mt-2">All checkpoints stacked per 15-minute bin; temperature overlaid.</p>
-      </div>
+    <div class="card p-6 mt-6">
+      <h3 class="text-lg font-semibold mb-3">Checkpoint flow vs weather — stacked by checkpoint</h3>
+      <canvas id="chart-flow-weather-stacked" height="120"></canvas>
+      <p class="caption mt-2">All checkpoints shown together. Bars stack by checkpoint per 15-minute slot; temperature overlays on a secondary axis.</p>
+    </div>
 
   </section>
 
@@ -271,33 +211,33 @@
       </div>
     </div>
 
-    <div id="geos"></div>
-<div class="card p-6 mt-6">
+    <div class="card p-6 mt-6">
       <h3 class="text-lg font-semibold mb-3">Finishers by country</h3>
       <canvas id="chart-treemap" height="150"></canvas>
       <p class="caption mt-2">Tile size = finishers. Label shows each country’s share of all finishers.</p>
     </div>
     <div class="card p-6 mt-6">
-      <h3 class="text-lg font-semibold mb-3">Finishers by region</h3>
+      <h3 class="text-lg font-semibold mb-3">Finishers by region/continent</h3>
       <canvas id="chart-treemap-continent" height="150"></canvas>
-      <p class="caption mt-2">Tile size = finishers. Colored by region.</p>
+      <p class="caption mt-2">Tile size = finishers. Label shows each region’s count and share of all finishers.</p>
     </div>
 
   </section>
 
   <!-- FOOTNOTE -->
   <footer class="max-w-6xl mx-auto px-6 py-12 text-sm text-slate-500">
-    Data source: https://berlin.r.mikatiming.com/2024/?pid=start&pidp=start - updated on 22.09.2025.
+    Data source: https://berlin.r.mikatiming.com/2025/?pid=start&pidp=start - updated on 22.09.2025.
   </footer>
 
 <script>
 /* -------------------------- Data sources (GitHub) -------------------------- */
 // Update this if you move files.
 const DATA_BASE = 'https://raw.githubusercontent.com/danaustralia/berlinMarathon/main/support/';
-const URL_RUNNERS = DATA_BASE + 'BM_export_2024.csv';
-const URL_SPLITS  = DATA_BASE + 'BM_export_splits_2024.csv';
-const URL_WEATHER = DATA_BASE + 'WeatherData_2024.csv';
-const URL_MAP     = DATA_BASE + 'MapCountryData.csv';
+const URL_RUNNERS = DATA_BASE + 'BM_export_2025.csv';
+const URL_SPLITS  = DATA_BASE + 'BM_export_splits_2025.csv';
+const URL_WEATHER = DATA_BASE + 'WeatherData.csv';
+\1
+const URL_FINISHERS_HISTORY = DATA_BASE + 'FinishersHistory.csv'; // optional: Year,Finishers
 
 /* ------------------------------ Tiny helpers ------------------------------ */
 function parseHMS(s){
@@ -351,16 +291,67 @@ function parseAgeToBracket(s){
 /* ------------------------------ Globals ---------------------------------- */
 let runnerRows=null, splitsRows=null, weatherMap=null, weatherLabels=[];
 let chartWeather=null, chartFlowWeather=null, chartFlowWeatherStacked=null;
-let countryMap=null;
+let countryMap=null, continentByName=null;
 
 /* ------------------------------ Load all CSVs ----------------------------- */
 document.addEventListener('DOMContentLoaded', () => {
-  Papa.parse(URL_RUNNERS,{download:true,header:true,skipEmptyLines:true,complete: r => r.data?.length && onRunners(r.data)});
-  Papa.parse(URL_WEATHER,{download:true,header:true,skipEmptyLines:true,complete: r => r.data?.length && onWeather(r.data)});
-  Papa.parse(URL_SPLITS ,{download:true,header:true,skipEmptyLines:true,complete: r => r.data?.length && onSplits(r.data)});
-  Papa.parse(URL_MAP    ,{download:true,header:true,skipEmptyLines:true,complete: r => r.data?.length && onMap(r.data)});
+  Papa.parse(URL_FINISHERS_HISTORY,{download:true,header:true,skipEmptyLines:true,complete: r => {
+    try{
+      const rows=r.data||[];
+      if(rows.length){
+        const ycol=Object.keys(rows[0]||{}).find(c=>c.toLowerCase()==='year');
+        const fcol=Object.keys(rows[0]||{}).find(c=>c.toLowerCase().includes('finish'));
+        if(ycol && fcol){
+          historyLabels=rows.map(x=>String(x[ycol]).trim());
+          historyValues=rows.map(x=>Number(String(x[fcol]).replace(/[^0-9.]/g,''))||null);
+          setUpdated('history');
+        }
+      }
+    }catch(e){}
+    renderSparkline();
+  }});
+
+  Papa.parse(URL_RUNNERS,{download:true,header:true,skipEmptyLines:true,complete: r => { if(!r.data || !r.data.length){ showStatus('Runners CSV missing/empty — some cards may be blank.'); } else { onRunners(r.data); setUpdated('runners'); } }});
+  Papa.parse(URL_WEATHER,{download:true,header:true,skipEmptyLines:true,complete: r => { if(!r.data || !r.data.length){ showStatus('Weather CSV missing/empty — weather charts may be blank.'); } else { onWeather(r.data); setUpdated('weather'); } }});
+  Papa.parse(URL_SPLITS ,{download:true,header:true,skipEmptyLines:true,complete: r => { if(!r.data || !r.data.length){ showStatus('Splits CSV missing/empty — flow charts may be blank.'); } else { onSplits(r.data); setUpdated('splits'); } }});
+  Papa.parse(URL_MAP    ,{download:true,header:true,skipEmptyLines:true,complete: r => { if(!r.data || !r.data.length){ showStatus('Map CSV missing/empty — country/region features may be limited.'); } else { onMap(r.data); setUpdated('map'); } }});
 });
 
+
+/* ------------------------------ Status helpers & Sparkline ------------------------------ */
+function setUpdated(which){
+  const el = document.getElementById('updated-' + which);
+  if (el) el.textContent = new Date().toLocaleString();
+}
+function showStatus(msg){
+  const el = document.getElementById('statusArea');
+  if(!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function hideStatus(){
+  const el = document.getElementById('statusArea');
+  if(!el) return;
+  el.classList.add('hidden');
+}
+
+let historyLabels=[], historyValues=[];
+function renderSparkline(){
+  try{
+    const canvas = document.getElementById('spark-finishers');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if(!historyLabels.length || !historyValues.length){
+      const emptyEl = document.getElementById('spark-empty');
+      if(emptyEl) emptyEl.classList.remove('hidden');
+      return;
+    }
+    ensureChart(ctx, 'line',
+      { labels: historyLabels, datasets:[ { label:'Finishers', data: historyValues, tension:.3, pointRadius:0 } ] },
+      { responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ticks:{display:false}}, x:{ticks:{maxRotation:0, autoSkip:true}} } }
+    );
+  }catch(e){}
+}
 /* ------------------------------ Runners CSV ------------------------------ */
 function onRunners(rows){
   runnerRows = rows;
@@ -400,110 +391,6 @@ function onRunners(rows){
   document.getElementById('kpi-median').textContent = fmtHMS(median(times));
   document.getElementById('kpi-under4').textContent = total? (under4/total*100).toFixed(1)+'%' : '—';
   document.getElementById('kpi-dsq').textContent = dsq.toLocaleString();
-  // Extra KPIs: Fastest & Last-place among finishers
-  (function(){
-    var fastest=null, slowest=null;
-    if (Array.isArray(times) && times.length){
-      for (var i=0;i<times.length;i++){
-        var t=times[i]; if (t==null || isNaN(t)) continue;
-        if (fastest==null || t<fastest) fastest=t;
-        if (slowest==null || t>slowest) slowest=t;
-      }
-    }
-    var elF=document.getElementById('kpi-fastest');
-    var elL=document.getElementById('kpi-lastplace');
-    if (elF) elF.textContent = fmtHMS(fastest);
-    if (elL) elL.textContent = fmtHMS(slowest);
-  })();
-
-  
-  
-  // Podium flags (top 3 by finish time for Men & Women) — robust alpha-3 -> alpha-2 mapping
-  (function(){
-    try {
-      const find=(cands)=>{ const cols=Object.keys(rows[0]||{}); return cols.find(c=>cands.includes(c.toLowerCase()))||null; };
-      const colTime   = find(['timetotal','time_total','finishnetto','nettime','nett_time','net']);
-      const colStatus = find(['racestatus','race_status','status']);
-      const colGender = find(['gender','sex']);
-      const colCountry= find(['country','nation','countryname']);
-      const colCode   = find(['countrycode','nationcode','code','ioc','alpha3']);
-      if (!colTime || !colGender) return;
-
-      function toAlpha2(code){
-        if (!code) return null;
-        const c = String(code).trim().toUpperCase();
-        if (c.length === 2) return c;
-        const map3to2 = {
-          'USA':'US','GBR':'GB','DEU':'DE','GER':'DE','FRA':'FR','ESP':'ES','NLD':'NL','NED':'NL','NOR':'NO','SWE':'SE','CHE':'CH','SUI':'CH','ITA':'IT',
-          'BEL':'BE','CAN':'CA','AUS':'AU','NZL':'NZ','POL':'PL','CZE':'CZ','HUN':'HU','AUT':'AT','PRT':'PT','IRL':'IE','JPN':'JP','CHN':'CN','KOR':'KR',
-          'BRA':'BR','MEX':'MX','COL':'CO','ZAF':'ZA','UGA':'UG','CMR':'CM','MAR':'MA','TUR':'TR','ROU':'RO','DNK':'DK','FIN':'FI','ISL':'IS','HRV':'HR',
-          'SRB':'RS','GRC':'GR','SVN':'SI','SVK':'SK','BGR':'BG','LTU':'LT','LVA':'LV','EST':'EE','UKR':'UA','RUS':'RU','IND':'IN','KEN':'KE','ETH':'ET','TAN':'TZ','TZA':'TZ'
-        };
-        return map3to2[c] || null;
-      }
-      function flagURL(code, name){
-        const a2 = toAlpha2(code);
-        if (a2) return 'https://flagcdn.com/w40/' + a2.toLowerCase() + '.png';
-        if (name) return 'https://countryflagsapi.com/png/' + encodeURIComponent(name);
-        return '';
-      }
-
-      function computeTop3(sex){
-        const wantF = sex==='F';
-        const res = [];
-        for (var i=0;i<rows.length;i++){
-          const r = rows[i];
-          const g = String(r[colGender]||'').trim().toUpperCase();
-          const isF = (g==='F' || g==='FEMALE' || g==='W' || g==='WOMEN' || g==='WOMAN');
-          const isM = (g==='M' || g==='MALE' || g==='MEN' || g==='MAN');
-          if (wantF ? !isF : !isM) continue;
-
-          const t = parseHMS(r[colTime]);
-          const st = colStatus? String(r[colStatus]||'').toLowerCase().trim() : '';
-          const fin = st ? st.startsWith('finis') : (t!=null);
-          if (!fin || t==null) continue;
-
-          let cname = colCountry && r[colCountry] ? String(r[colCountry]).trim() : '';
-          let code  = colCode && r[colCode] ? String(r[colCode]).trim().toUpperCase() : '';
-
-          if (!cname && code && typeof countryMap === 'object' && countryMap[code]) {
-            cname = countryMap[code].Country || '';
-          }
-          if (!code && cname && typeof countryMap === 'object') {
-            for (const k in countryMap) {
-              const info = countryMap[k];
-              if (info && info.Country === cname) { code = k; break; }
-            }
-          }
-          res.push({t, cname, code});
-        }
-        res.sort((a,b)=>a.t-b.t);
-        return res.slice(0,3);
-      }
-
-      function renderPodium(prefix, top3){
-        const ids = ['flag-' + prefix + '-1','flag-' + prefix + '-2','flag-' + prefix + '-3'];
-        for (var k=0;k<3;k++){
-          var img = document.getElementById(ids[k]);
-          if (!img) continue;
-          var ccode = (top3[k] && top3[k].code) ? top3[k].code : '';
-          var cname = (top3[k] && top3[k].cname) ? top3[k].cname : '';
-          var src = flagURL(ccode, cname);
-          img.src = src;
-          img.alt = cname || (ccode || ('#'+(k+1)));
-          img.title = cname || ccode || '';
-          img.loading = 'lazy';
-        }
-      }
-
-      renderPodium('men', computeTop3('M'));
-      renderPodium('women', computeTop3('F'));
-
-    } catch(e){ /* no-op */ }
-  })();
-;
-;
-
 
   // Highlights paragraph (story)
   const sortedStarts = Object.entries(startSlots).sort((a,b)=>a[0].localeCompare(b[0]));
@@ -542,6 +429,7 @@ function onRunners(rows){
   // Flow chart dropdown needs splits/runners metadata
   updateCheckpointOptions();
   renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish');
+  renderFlowWeatherStackedAll();
 
   // If weather already ready, we can try to draw the segment pace with overlay using SPLITS (if present) or runners.
   if(weatherMap && (splitsRows?.length || runnerRows?.length)) renderSegmentPace(splitsRows?.length ? splitsRows : runnerRows);
@@ -554,7 +442,7 @@ function onWeather(rows){
   const tempCol=headers['temperature_c']||headers['temp_c']||headers['temperature']||headers['temp'];
   const feelCol=headers['feelslike_c']||headers['feelslike']||headers['apparent_temp_c']||headers['apparenttemperature'];
 
-  const map={};
+  const map={}; const byName={};
   for(const r of rows){
     const label=toHHmm(r[tCol]); if(!label) continue;
     const tVal=tempCol!=null? Number(String(r[tempCol]).replace(',','.')): NaN;
@@ -578,6 +466,7 @@ function onWeather(rows){
   // Refresh flow overlay if data present
   updateCheckpointOptions();
   renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish');
+  renderFlowWeatherStackedAll();
 }
 
 /* -------------------------------- Splits CSV ------------------------------ */
@@ -585,6 +474,7 @@ function onSplits(rows){
   splitsRows = rows;
   updateCheckpointOptions();
   renderFlowWeatherFor((document.getElementById('checkpointSelect')||{}).value||'Finish');
+  renderFlowWeatherStackedAll();
   if(weatherMap) renderSegmentPace(splitsRows);
 }
 
@@ -594,15 +484,15 @@ function onMap(rows){
   const codeCol=headers['code']||headers['countrycode']||headers['ioc']||headers['alpha3'];
   const countryCol=headers['country']||headers['name'];
   const contCol=headers['continent']||headers['region'];
-  const map={};
+  const map={}; const byName={};
   for(const r of rows){
     const code=codeCol?String(r[codeCol]||'').trim().toUpperCase():'';
     if(!code) continue;
     const country=countryCol?String(r[countryCol]||'').trim():code;
     const cont=contCol?String(r[contCol]||'').trim():'';
-    map[code]={Country:country,Continent:cont};
+    map[code]={Country:country,Continent:cont}; byName[String(country).trim().toLowerCase()]=cont;
   }
-  countryMap=map;
+  countryMap=map; continentByName=byName;
   renderCountryAndAge(runnerRows||[]);
 }
 
@@ -617,8 +507,7 @@ function renderCountryAndAge(rows){
   const colCode=getCol(['countrycode','nationcode','code','ioc','alpha3']);
 
   const agesFin={}, agesDNF={}, countriesByStatus={}, countryTotals={};
-
-  for(const r of rows){
+for(const r of rows){
     // Age split
     if(colAge && r[colAge]) {
       const ag=String(r[colAge]).trim();
@@ -640,15 +529,12 @@ function renderCountryAndAge(rows){
     if(!countriesByStatus[cname]) countriesByStatus[cname]={};
     countriesByStatus[cname][lab]=(countriesByStatus[cname][lab]||0)+1;
     countryTotals[cname]=(countryTotals[cname]||0)+1;
-  
-  // Update Countries represented KPI (exclude "Unknown")
-  (function(){
-    var el = document.getElementById('kpi-countries');
-    if (!el) return;
-    var unique = Object.keys(countryTotals).filter(function(c){ return c && c !== 'Unknown'; });
-    el.textContent = unique.length.toLocaleString();
+  }
+
+  // Update Countries represented KPI (exclude "Unknown"), now that countryTotals is ready
+  (function(){ const el=document.getElementById('kpi-countries'); if(!el) return;
+    const unique=Object.keys(countryTotals).filter(c=>c && c!=='Unknown'); el.textContent=unique.length.toLocaleString();
   })();
-}
 
   // Top20 stacked
   const top=Object.entries(countryTotals).sort((a,b)=>b[1]-a[1]).slice(0,20).map(d=>d[0]);
@@ -669,71 +555,45 @@ function renderCountryAndAge(rows){
   const totalFin = Object.values(finByCountry).reduce((a,b)=>a+b,0)||1;
   const tree = Object.entries(finByCountry).map(([country,value])=>({country,value}));
   ensureChart(document.getElementById('chart-treemap').getContext('2d'),'treemap',
-    {datasets:[{tree,groups:['country'],key:'value',labels:{display:true,formatter:(ctx)=>{const raw=ctx.raw; if(!raw) return ''; const val=(raw.v!=null?raw.v:(raw._data?.value??0)); 
-  // Treemap: finishers by region/continent with fixed colors
-  if (countryMap) {
-    const finByContinent = {};
-    for (const [country, value] of Object.entries(finByCountry)) {
-      let cont = 'Unknown';
-      // map by country name -> continent (using countryMap values)
-      for (const code in countryMap) {
-        const info = countryMap[code];
-        if (info && info.Country === country) { cont = info.Continent || 'Unknown'; break; }
-      }
-      if (cont && cont !== 'Unknown') {
-        finByContinent[cont] = (finByContinent[cont] || 0) + value;
-      }
-    }
-    const totalFinCont = Object.values(finByContinent).reduce((a,b)=>a+b,0) || 1;
-    const treeCont = Object.entries(finByContinent).map(([continent,value])=>({continent,value}));
-    ensureChart(
-      document.getElementById('chart-treemap-continent').getContext('2d'),
-      'treemap',
-      { datasets: [{
-          tree: treeCont,
-          groups: ['continent'],
-          key: 'value',
-          backgroundColor: function(ctx){
-            const raw = ctx.raw || {}; const data = raw._data || {};
-            const name = data.continent || raw.g || '';
-            const cmap = {
-              'Europe':'#1f77b4','Asia':'#ff7f0e','North America':'#2ca02c',
-              'South America':'#d62728','Africa':'#9467bd','Oceania':'#8c564b',
-              'Antarctica':'#e377c2','Unknown':'#c7c7c7'
-            };
-            return cmap[name] || 'hsl(0, 0%, 80%)';
-          },
-          labels: {
-            display: true,
-            formatter: function(ctx){
-              const raw = ctx.raw || {}; const data = raw._data || {};
-              const name = data.continent || raw.g || '';
-              const v = (raw.v != null ? raw.v : (data.value != null ? data.value : 0)) || 0;
-              const pct = Math.round((v/totalFinCont)*100);
-              return name + ': ' + v + ' (' + pct + '%)';
-            },
-            font: { size: 11 }
-          }
-        }]
-      },
-      { responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: {
-            label: function(ctx){
-              const raw = ctx.raw || {}; const data = raw._data || {};
-              const name = data.continent || raw.g || '';
-              const v = (raw.v != null ? raw.v : (data.value != null ? data.value : 0)) || 0;
-              const pct = Math.round((v/totalFinCont)*100);
-              return name + ': ' + v + ' (' + pct + '%)';
+    {datasets:[{tree,groups:['country'],key:'value',labels:{display:true,formatter:(ctx)=>{const raw=ctx.raw; if(!raw) return ''; const val=(raw.v!=null?raw.v:(raw._data?.value??0)); const pct=Math.round((val/totalFin)*100); return `${raw._data.country}: ${val} (${pct}%)`;},font:{size:10}}}]},
+    {responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>{const raw=ctx.raw; const val=(raw.v!=null?raw.v:(raw._data?.value??0)); const pct=Math.round((val/totalFin)*100); return `${raw._data.country}: ${val} (${pct}%)`;}}}}});
+
+  // Treemap: finishers by region/continent
+  const finByContinent = {};
+  for (const [country, value] of Object.entries(finByCountry)) {
+    const cont = (continentByName && country) ? (continentByName[String(country).trim().toLowerCase()] || 'Unknown') : 'Unknown';
+    if (!cont || cont === 'Unknown') continue;
+    finByContinent[cont] = (finByContinent[cont] || 0) + value;
+  }
+  const totalFinCont = Object.values(finByContinent).reduce((a,b)=>a+b,0)||1;
+  const treeCont = Object.entries(finByContinent).map(([continent,value])=>({continent,value}));
+  ensureChart(document.getElementById('chart-treemap-continent').getContext('2d'),'treemap',
+    {datasets:[{tree: treeCont, groups:['continent'], key:'value',
+      labels:{display:true, formatter:(ctx)=>{
+        const raw = ctx.raw || {};
+        const v = (raw.v!=null?raw.v:(raw._data?.value??0));
+        const val = Number.isFinite(v) ? v : 0;
+        const pct = Math.round((val/totalFinCont)*100);
+        return `${raw._data?.continent||''}: ${val} (${pct}%)`;
+      }, font:{size:11}}
+    }]},
+    {responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:(ctx)=>{
+              const raw = ctx.raw || {};
+              const data = raw._data || {};
+              const val = (raw.v!=null ? raw.v : (data.value ?? 0)) || 0;
+              const name = (data.continent || raw.g || 'Unknown');
+              const pct = totalFinCont ? Math.round((val/totalFinCont)*100) : 0;
+              return `${name}: ${val} (${pct}%)`;
             }
-          }}
+          }
         }
       }
-    );
-  }
-const pct=Math.round((val/totalFin)*100); return `${raw._data.country}: ${val} (${pct}%)`;},font:{size:10}}}]},
-    {responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>{const raw=ctx.raw; const val=(raw.v!=null?raw.v:(raw._data?.value??0)); const pct=Math.round((val/totalFin)*100); return `${raw._data.country}: ${val} (${pct}%)`;}}}}});
+    });
 }
 
 /* ------------------------------- BQ stacked ------------------------------- */
@@ -805,7 +665,7 @@ function buildCheckpointMap(rows){
     ['Half','halftimeofday'],['Half','half_time_of_day'],['Half','halbtimeofday'],
     ['25km','25kmtimeofday'],['30km','30kmtimeofday'],['35km','35kmtimeofday'],['40km','40kmtimeofday'],['Finish','finishtimeofday']
   ];
-  const map={}; for(const [key,cand] of pairs){ if(has(cand)) map[key]=cols.find(c=>c.toLowerCase()===cand); }
+  const map={}; const byName={}; for(const [key,cand] of pairs){ if(has(cand)) map[key]=cols.find(c=>c.toLowerCase()===cand); }
   return map;
 }
 function updateCheckpointOptions(){
@@ -817,7 +677,6 @@ function updateCheckpointOptions(){
   const order=['5km','10km','15km','20km','Half','25km','30km','35km','40km','Finish'];
   for(const k of order){ if(cpMap[k]){ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); } }
   sel.onchange=()=>renderFlowWeatherFor(sel.value);
-  renderFlowWeatherStackedAll();
 }
 function renderFlowWeatherFor(cp){
   const rows=(splitsRows&&splitsRows.length)?splitsRows:(runnerRows||[]);
@@ -842,20 +701,17 @@ function renderFlowWeatherStackedAll(){
   const rows = (splitsRows && splitsRows.length) ? splitsRows : (runnerRows || []);
   if (!rows.length) return;
   const cpMap = buildCheckpointMap(rows);
-  const order = ['5km','10km','15km','20km','Half','25km','30km','35km','40km','Finish'].filter(function(k){ return cpMap[k]; });
+  const order = ['5km','10km','15km','20km','Half','25km','30km','35km','40km','Finish'].filter(k => cpMap[k]);
 
   // Build counts per checkpoint per 15-min label
   const countsByCp = {};
   const allLabels = {};
-  for (var oi=0; oi<order.length; oi++){
-    const cp = order[oi];
+  for (const cp of order){
     const col = cpMap[cp];
     const counts = {};
-    for (var i=0; i<rows.length; i++){
-      const r = rows[i];
+    for (const r of rows){
       const v = r[col]; if (!v) continue;
-      const hhmm = toHHmm(v); if (!hhmm) continue;
-      const b = get15Label(hhmm); if (!b) continue;
+      const b = get15Label(toHHmm(v)); if (!b) continue;
       counts[b] = (counts[b] || 0) + 1;
       allLabels[b] = true;
     }
@@ -863,48 +719,49 @@ function renderFlowWeatherStackedAll(){
   }
 
   // Merge with weather labels
-  var labels = Object.keys(allLabels);
+  let labels = Object.keys(allLabels);
   if (weatherLabels && weatherLabels.length){
-    const merged = {}; for (var j=0; j<labels.length; j++) merged[labels[j]] = true;
-    for (var k=0; k<weatherLabels.length; k++) merged[weatherLabels[k]] = true;
+    const merged = {};
+    for (const l of labels) merged[l] = true;
+    for (const w of weatherLabels) merged[w] = true;
     labels = Object.keys(merged);
   }
-  labels.sort(function(a,b){ return a.localeCompare(b); });
+  labels.sort((a,b) => a.localeCompare(b));
 
-  // Build temperature overlay
   const temp = [];
   if (weatherMap){
-    for (var t=0; t<labels.length; t++){
-      const l = labels[t];
+    for (const l of labels){
       const w = weatherMap[l];
       temp.push((w && w.t != null) ? w.t : null);
     }
   }
 
-  // Unique colors per checkpoint
-  const palette = function(n){ var arr=[]; for(var i=0;i<n;i++){ arr.push('hsl(' + Math.round((360/n)*i) + ', 70%, 55%)'); } return arr; };
-  const datasets = order.map(function(cp){
-    return {
-      label: cp,
-      data: labels.map(function(l){ return (countsByCp[cp][l] || 0); }),
-      stack: 'cp'
-    };
-  });
-  const colors = palette(datasets.length);
-  for (var di=0; di<datasets.length; di++){ datasets[di].backgroundColor = colors[di % colors.length]; }
+  const datasets = order.map(cp => ({
+    label: cp,
+    data: labels.map(l => (countsByCp[cp][l] || 0)),
+    stack: 'cp'
+  }));
 
   if (temp.length){
-    datasets.push({ label:'Temperature (°C)', data:temp, type:'line', yAxisID:'y1', tension:.25, pointRadius:2 });
+    datasets.push({
+      label: 'Temperature (°C)',
+      data: temp,
+      type: 'line',
+      yAxisID: 'y1',
+      tension: .25,
+      pointRadius: 2
+    });
   }
 
   chartFlowWeatherStacked = ensureChart(
     document.getElementById('chart-flow-weather-stacked').getContext('2d'),
     'bar',
-    { labels: labels, datasets: datasets },
-    { responsive:true, scales:{
-        y: { title:{display:true, text:'Runners'}, stacked:true },
-        x: { stacked:true },
-        y1:{ position:'right', title:{display:true, text:'°C'}, grid:{ drawOnChartArea:false } }
+    { labels, datasets },
+    { responsive: true,
+      scales: {
+        y: { title: { display: true, text: 'Runners' }, stacked: true },
+        x: { stacked: true },
+        y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } }
       }
     }
   );
@@ -985,24 +842,18 @@ function renderSegmentPace(rows){
 }
 </script>
 
-  <!-- === Professional Footer === -->
-  <footer class="mt-12 border-t border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40">
-    <div class="max-w-7xl mx-auto px-6 py-8 grid gap-4 md:grid-cols-3 text-sm">
-      <div>
-        <p class="font-semibold text-slate-700 dark:text-slate-200">Berlin Marathon Insights</p>
-        <p class="text-slate-500 dark:text-slate-400">Built for clarity and speed — checkpoint flow, weather overlays, and geographic insights.</p>
-      </div>
-      <div class="text-slate-500 dark:text-slate-400">
-        <p>Data sources: runners, splits, weather, country map.</p>
-        <p>Hosted on <span class="font-medium text-slate-700 dark:text-slate-200">Wasmer</span>.</p>
-      </div>
-      <div class="text-right text-slate-500 dark:text-slate-400">
-        <p>&copy; <span id="yearNow"></span> Marathon Analytics</p>
-        <p><a href="#kpigrid" class="hover:text-sky-600">Back to top ↑</a></p>
-      </div>
-    </div>
-  </footer>
-  <script>document.getElementById('yearNow').textContent = new Date().getFullYear();</script>
+<dialog id="sources" class="rounded-xl p-4 w-[min(680px,90vw)]">
+  <h3 class="font-semibold mb-2">Methodology & sources</h3>
+  <ul class="text-sm text-slate-600 list-disc pl-5 leading-relaxed">
+    <li>Counts reflect parsed CSV exports. Public counts may vary by snapshot date or timing provider updates.</li>
+    <li>Reference reading: “The 2024 Berlin Marathon—By the Numbers” (Runner’s Life) and Wikipedia year summaries.</li>
+    <li>Official results: SCC/MIKA timing portal.</li>
+  </ul>
+  <div class="mt-3 text-right"><button onclick="this.closest('dialog').close()" class="px-3 py-1 ring-1 ring-slate-300 rounded-lg">Close</button></div>
+</dialog>
+<script>
+  document.getElementById('srcToggle')?.addEventListener('click', () => document.getElementById('sources').showModal());
+</script>
 
 </body>
 </html>
