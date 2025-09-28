@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Berlin Marathon – Results Dashboard (Updated)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    /* Fallback fonts for a clean look */
+    :root { --card: #ffffff; --muted:#6b7280; }
+    body{ background:#f8fafc; }
+    .card{ background:var(--card); border-radius:1rem; box-shadow:0 10px 16px rgba(0,0,0,.05); }
+    .kpi-title{ color:var(--muted); font-size:.85rem; text-transform:uppercase; letter-spacing:.08em; }
+    .kpi-value{ font-size:1.8rem; font-weight:700; }
+    .grid-cards{ display:grid; gap:1rem; grid-template-columns:repeat(1,minmax(0,1fr)); }
+    @media(min-width:640px){ .grid-cards{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(min-width:1024px){ .grid-cards{ grid-template-columns:repeat(5,minmax(0,1fr)); } }
+  </style>
+</head>
+<body class="text-slate-800">
+  <header class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <h1 class="text-2xl sm:text-3xl font-bold">Berlin Marathon – Results Dashboard</h1>
+    <p class="text-sm text-slate-600 mt-2"></p>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+    <!-- Controls -->
+    <section class="card p-4 sm:p-6 mb-6">
+      <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Upload CSV (e.g., <code>map_idp_gender_2024.csv</code>)</label>
+          <input id="fileInput" type="file" accept=".csv" class="mt-1 block w-full text-sm" />
+        </div>
+        <div class="grow">
+          <label class="block text-sm font-medium text-slate-700">Or fetch from URL</label>
+          <div class="flex gap-2 mt-1">
+            <input id="csvUrl" type="url" placeholder="https://example.com/map_idp_gender_2024.csv" class="w-full border rounded-lg px-3 py-2 text-sm" />
+            <button id="btnFetch" class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm">Load</button>
+          </div>
+        </div>
+      </div>
+      <p id="status" class="mt-3 text-sm text-slate-600"></p>
+      <p class="mt-2 text-xs text-slate-500">Required columns (case-insensitive, flexible names supported): <strong>Gender</strong>, <strong>RaceStatus</strong>, <strong>FinishTime</strong> (or OfficialTime/ChipTime/NetTime), <strong>Country</strong> (or Nation/Nationality), <strong>Lastsplit</strong>.</p>
+    </section>
+
+    <!-- KPI Cards -->
+    <section class="grid-cards">
+      <!-- 1) Total Runners = Registered Runners -->
+      <div class="card p-5">
+        <div class="kpi-title">Registered Runners</div>
+        <div id="kpi-registered" class="kpi-value">–</div>
+      </div>
+
+      <!-- 2) Started = RaceStatus != DNS -->
+      <div class="card p-5">
+        <div class="kpi-title">Started</div>
+        <div id="kpi-started" class="kpi-value">–</div>
+      </div>
+
+      <!-- 3) Keep Finished card -->
+      <div class="card p-5">
+        <div class="kpi-title">Finished</div>
+        <div id="kpi-finished" class="kpi-value">–</div>
+      </div>
+
+      <!-- 4) Add DNF card -->
+      <div class="card p-5">
+        <div class="kpi-title">DNF</div>
+        <div id="kpi-dnf" class="kpi-value">–</div>
+      </div>
+
+      <!-- 5) DSQ card next to DNF -->
+      <div class="card p-5">
+        <div class="kpi-title">DSQ</div>
+        <div id="kpi-dsq" class="kpi-value">–</div>
+      </div>
+
+      <!-- 6) Finish Rate = Finished minus Started (per your spec) -->
+      <div class="card p-5">
+        <div class="kpi-title">Finish Rate (Finished − Started)</div>
+        <div id="kpi-finishrate" class="kpi-value">–</div>
+      </div>
+
+      <!-- 7) Keep Median Finish -->
+      <div class="card p-5">
+        <div class="kpi-title">Median Finish</div>
+        <div id="kpi-median" class="kpi-value">–</div>
+      </div>
+
+      <!-- 8) Median Finish Male -->
+      <div class="card p-5">
+        <div class="kpi-title">Median Finish Male</div>
+        <div id="kpi-median-m" class="kpi-value">–</div>
+      </div>
+
+      <!-- 9) Median Finish Female -->
+      <div class="card p-5">
+        <div class="kpi-title">Median Finish Female</div>
+        <div id="kpi-median-w" class="kpi-value">–</div>
+      </div>
+
+      <!-- 10) Remove last place card (intentionally omitted) -->
+    </section>
+
+    <!-- Charts -->
+    <section class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <!-- 11) Finish times histogram (15 min bins), stacked by gender -->
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">Finish times (15-minute bins)</h2>
+          <div class="text-xs text-slate-500">Stacked by gender</div>
+        </div>
+        <canvas id="chartTimes" height="220"></canvas>
+      </div>
+
+      <!-- 12) Top 20 countries finishers (stacked by gender) -->
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">Top 20 countries – finishers</h2>
+          <div class="text-xs text-slate-500">Stacked by gender</div>
+        </div>
+        <canvas id="chartCountries" height="220"></canvas>
+      </div>
+
+      <!-- 13) Bar chart: runners with RaceStatus != DNS grouped by Lastsplit -->
+      <div class="card p-4 lg:col-span-2">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">Starters by Last split</h2>
+          <div class="text-xs text-slate-500">RaceStatus ≠ DNS</div>
+        </div>
+        <canvas id="chartLastsplit" height="260"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ------------------------------ Utilities ------------------------------
+    const norm = (s) => (s ?? '').toString().trim();
+
+    function pickColumn(headerMap, candidates){
+      for(const c of candidates){
+        if(headerMap.has(c)) return headerMap.get(c);
+      }
+      return null;
+    }
+
+    function buildHeaderMap(headers){
+      const map = new Map();
+      headers.forEach((h,i)=>{ map.set(h.toLowerCase(), i); });
+      return map;
+    }
+
+    // Flexible column name detection
+    const COLS = {
+      gender: ['gender','sex','sexcode'],
+      racestatus: ['racestatus','status','resultstatus','race_status'],
+      finishtime: ['finishtime','officialtime','chiptime','nettime','finish','finish_time','official_time','net_time'],
+      country: ['country','nation','nationality','countrycode','country_code'],
+      lastsplit: ['lastsplit','last_split','last split','last-split'],
+    };
+
+    // Normalize values
+    function normGender(g){
+      g = (g||'').toString().trim().toUpperCase();
+      if(['M','MALE','MEN','MAN'].includes(g)) return 'M';
+      if(['W','F','FEMALE','WOMEN','WOMAN','FRAU'].includes(g)) return 'W';
+      if(['X','D','DIVERS','NONBINARY','NB'].includes(g)) return 'X';
+      return g || 'U';
+    }
+
+    function normStatus(s){
+      s = (s||'').toString().trim().toUpperCase();
+      if(['DNS','DID NOT START'].includes(s)) return 'DNS';
+      if(['DNF','DID NOT FINISH'].includes(s)) return 'DNF';
+      if(['DSQ','DQ','DISQ','DISQUALIFIED'].includes(s)) return 'DSQ';
+      if(['FIN','FINISHED','OK','COMPLETE','DONE'].includes(s)) return 'FINISHED';
+      return s || 'UNKNOWN';
+    }
+
+    function parseTimeToSeconds(v){
+      if(v==null) return null;
+      let s = norm(v);
+      if(!s) return null;
+      // Accept HH:MM:SS or H:MM:SS or MM:SS
+      const parts = s.split(':').map(x=>x.trim());
+      if(parts.length===3){
+        const [hh,mm,ss] = parts.map(Number);
+        if(Number.isFinite(hh)&&Number.isFinite(mm)&&Number.isFinite(ss)) return hh*3600+mm*60+ss;
+      } else if(parts.length===2){
+        const [mm,ss] = parts.map(Number);
+        if(Number.isFinite(mm)&&Number.isFinite(ss)) return mm*60+ss;
+      }
+      // Try seconds value
+      const n = Number(s);
+      if(Number.isFinite(n)) return n;
+      return null;
+    }
+
+    function secondsToHHMMSS(sec){
+      if(sec==null||!Number.isFinite(sec)) return '–';
+      const s = Math.round(sec);
+      const hh = Math.floor(s/3600);
+      const mm = Math.floor((s%3600)/60);
+      const ss = s%60;
+      return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    }
+
+    function median(arr){
+      if(!arr.length) return null;
+      const a = arr.slice().sort((x,y)=>x-y);
+      const mid = Math.floor(a.length/2);
+      if(a.length%2) return a[mid];
+      return (a[mid-1]+a[mid])/2;
+    }
+
+    // ------------------------------ Rendering state ------------------------------
+    let chartTimes, chartCountries, chartLastsplit;
+
+    function setStatus(msg){
+      document.getElementById('status').textContent = msg || '';
+    }
+
+    function destroyCharts(){
+      for(const c of [chartTimes, chartCountries, chartLastsplit]){
+        if(c){ c.destroy(); }
+      }
+      chartTimes = chartCountries = chartLastsplit = null;
+    }
+
+    // ------------------------------ Main processing ------------------------------
+    function processRows(rows){
+      // Determine columns (case-insensitive mapping)
+      if(!rows || !rows.length){ setStatus('No rows found.'); return; }
+      const headers = rows[0].map?.call ? rows[0] : Object.keys(rows[0]);
+
+      let records = [];
+      if(Array.isArray(rows[0])){
+        // PapaParse: rows[0] is header row if we didn't use header:true
+        // This code path handles when PapaParse is used with header:true (objects),
+        // so if we detect arrays, re-parse differently.
+        setStatus('Unexpected CSV format. Please reload.');
+        return;
+      } else {
+        // rows are objects
+        const headerMap = new Map(Object.keys(rows[0]).map((h,i)=>[h.toLowerCase(), h]));
+        const colGender   = pickColumn(headerMap, COLS.gender.map(s=>s.toLowerCase()));
+        const colStatus   = pickColumn(headerMap, COLS.racestatus.map(s=>s.toLowerCase()));
+        const colTime     = pickColumn(headerMap, COLS.finishtime.map(s=>s.toLowerCase()));
+        const colCountry  = pickColumn(headerMap, COLS.country.map(s=>s.toLowerCase()));
+        const colLastsplit= pickColumn(headerMap, COLS.lastsplit.map(s=>s.toLowerCase()));
+
+        const missing = [];
+        if(!colGender)   missing.push('Gender');
+        if(!colStatus)   missing.push('RaceStatus');
+        if(!colTime)     missing.push('FinishTime');
+        if(!colCountry)  missing.push('Country');
+        if(!colLastsplit)missing.push('Lastsplit');
+        if(missing.length){
+          setStatus('Missing required columns: ' + missing.join(', '));
+        } else {
+          setStatus('Loaded.');
+        }
+
+        records = rows.map(r=>({
+          Gender: normGender(r[colGender]),
+          RaceStatus: normStatus(r[colStatus]),
+          FinishSec: parseTimeToSeconds(r[colTime]),
+          Country: norm(r[colCountry]) || 'UNK',
+          Lastsplit: norm(r[colLastsplit]) || 'UNK',
+        }));
+      }
+
+      // ---- KPIs ----
+      const total = records.length; // Registered Runners
+      const started = records.filter(r => r.RaceStatus !== 'DNS').length; // Started
+      const finished = records.filter(r => r.RaceStatus === 'FINISHED').length; // Finished
+      const dnf = records.filter(r => r.RaceStatus === 'DNF').length; // DNF
+      const dsq = records.filter(r => r.RaceStatus === 'DSQ').length; // DSQ
+      const finishRate = finished - started; // per spec
+
+      const finishedTimes = records.filter(r => r.RaceStatus==='FINISHED' && Number.isFinite(r.FinishSec)).map(r=>r.FinishSec);
+      const medianAll = median(finishedTimes);
+      const medianM = median(records.filter(r=>r.RaceStatus==='FINISHED' && r.Gender==='M' && Number.isFinite(r.FinishSec)).map(r=>r.FinishSec));
+      const medianW = median(records.filter(r=>r.RaceStatus==='FINISHED' && r.Gender==='W' && Number.isFinite(r.FinishSec)).map(r=>r.FinishSec));
+
+      document.getElementById('kpi-registered').textContent = total.toLocaleString();
+      document.getElementById('kpi-started').textContent = started.toLocaleString();
+      document.getElementById('kpi-finished').textContent = finished.toLocaleString();
+      document.getElementById('kpi-dnf').textContent = dnf.toLocaleString();
+      document.getElementById('kpi-dsq').textContent = dsq.toLocaleString();
+      document.getElementById('kpi-finishrate').textContent = finishRate.toLocaleString();
+      document.getElementById('kpi-median').textContent = secondsToHHMMSS(medianAll);
+      document.getElementById('kpi-median-m').textContent = secondsToHHMMSS(medianM);
+      document.getElementById('kpi-median-w').textContent = secondsToHHMMSS(medianW);
+
+      // ---- Charts ----
+      destroyCharts();
+
+      // 11) Finish times (15-minute bins) stacked by gender
+      const finishedRecs = records.filter(r=>r.RaceStatus==='FINISHED' && Number.isFinite(r.FinishSec));
+      const binSize = 15*60; // 15 minutes in seconds
+      const binMap = new Map(); // key -> {M:count, W:count, X:count}
+
+      let minSec = Infinity, maxSec = -Infinity;
+      for(const r of finishedRecs){
+        if(r.FinishSec<minSec) minSec = r.FinishSec;
+        if(r.FinishSec>maxSec) maxSec = r.FinishSec;
+      }
+      if(!Number.isFinite(minSec)) { minSec = 0; maxSec = 0; }
+      const startBin = Math.floor(minSec/binSize)*binSize;
+      const endBin = Math.ceil(maxSec/binSize)*binSize;
+      for(let t=startBin; t<=endBin; t+=binSize){
+        binMap.set(t, {M:0,W:0,X:0});
+      }
+      for(const r of finishedRecs){
+        const key = Math.floor(r.FinishSec/binSize)*binSize;
+        if(!binMap.has(key)) binMap.set(key, {M:0,W:0,X:0});
+        const g = (r.Gender==='M'||r.Gender==='W'||r.Gender==='X')? r.Gender : 'X';
+        binMap.get(key)[g]++;
+      }
+      const labelsTimes = Array.from(binMap.keys()).sort((a,b)=>a-b).map(t=>`${secondsToHHMMSS(t)}–${secondsToHHMMSS(t+binSize)}`);
+      const dataM = Array.from(binMap.keys()).sort((a,b)=>a-b).map(k=>binMap.get(k).M);
+      const dataW = Array.from(binMap.keys()).sort((a,b)=>a-b).map(k=>binMap.get(k).W);
+      const dataX = Array.from(binMap.keys()).sort((a,b)=>a-b).map(k=>binMap.get(k).X);
+
+      chartTimes = new Chart(document.getElementById('chartTimes'), {
+        type: 'bar',
+        data: {
+          labels: labelsTimes,
+          datasets: [
+            { label: 'Men (M)', data: dataM, stack: 'gender' },
+            { label: 'Women (W)', data: dataW, stack: 'gender' },
+            { label: 'Non-binary/Other (X)', data: dataX, stack: 'gender' },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+        }
+      });
+
+      // 12) Top 20 countries finishers (stacked by gender)
+      const countryCounts = new Map(); // country -> {M,W,X,total}
+      for(const r of finishedRecs){
+        const c = r.Country || 'UNK';
+        if(!countryCounts.has(c)) countryCounts.set(c,{M:0,W:0,X:0,total:0});
+        const g = (r.Gender==='M'||r.Gender==='W'||r.Gender==='X')? r.Gender : 'X';
+        const rec = countryCounts.get(c);
+        rec[g]++; rec.total++;
+      }
+      const topCountries = Array.from(countryCounts.entries())
+        .sort((a,b)=>b[1].total - a[1].total)
+        .slice(0,20);
+      const labelsCountries = topCountries.map(([c])=>c);
+      const dataCM = topCountries.map(([,v])=>v.M);
+      const dataCW = topCountries.map(([,v])=>v.W);
+      const dataCX = topCountries.map(([,v])=>v.X);
+
+      chartCountries = new Chart(document.getElementById('chartCountries'), {
+        type: 'bar',
+        data: {
+          labels: labelsCountries,
+          datasets: [
+            { label: 'Men (M)', data: dataCM, stack: 'gender' },
+            { label: 'Women (W)', data: dataCW, stack: 'gender' },
+            { label: 'Non-binary/Other (X)', data: dataCX, stack: 'gender' },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+        }
+      });
+
+      // 13) Bar chart: starters (RaceStatus != DNS) grouped by Lastsplit
+      const starters = records.filter(r=>r.RaceStatus!=='DNS');
+      const lastMap = new Map();
+      for(const r of starters){
+        const key = r.Lastsplit || 'UNK';
+        lastMap.set(key, (lastMap.get(key)||0)+1);
+      }
+      const labelsLast = Array.from(lastMap.keys());
+      const dataLast = labelsLast.map(k=>lastMap.get(k));
+
+      chartLastsplit = new Chart(document.getElementById('chartLastsplit'), {
+        type: 'bar',
+        data: { labels: labelsLast, datasets: [{ label: 'Starters', data: dataLast }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { ticks: { autoSkip: true, maxRotation: 60, minRotation: 0 } }, y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    // ------------------------------ CSV Loading ------------------------------
+    function parseCsvText(text){
+      // Parse as objects with header row
+      const out = Papa.parse(text, { header: true, skipEmptyLines: true });
+      if(out.errors && out.errors.length){
+        console.warn(out.errors);
+      }
+      return out.data;
+    }
+
+    document.getElementById('fileInput').addEventListener('change', (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      setStatus('Reading file…');
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const rows = parseCsvText(reader.result);
+          processRows(rows);
+        } catch(err){
+          console.error(err);
+          setStatus('Failed to parse CSV: ' + err.message);
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    document.getElementById('btnFetch').addEventListener('click', async ()=>{
+      const url = document.getElementById('csvUrl').value.trim();
+      if(!url){ setStatus('Enter a CSV URL.'); return; }
+      try{
+        setStatus('Fetching…');
+        const res = await fetch(url);
+        if(!res.ok){ throw new Error('HTTP ' + res.status); }
+        const text = await res.text();
+        const rows = parseCsvText(text);
+        processRows(rows);
+      } catch(err){
+        console.error(err);
+        setStatus('Failed to fetch/parse CSV: ' + err.message);
+      }
+    });
+  </script>
+</body>
+</html>

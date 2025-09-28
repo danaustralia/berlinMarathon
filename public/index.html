@@ -612,7 +612,7 @@ function renderCountryAndAge(rows){
   const getCol=(names)=>{ const cols=Object.keys(rows[0]||{}); return cols.find(c=>names.includes(c.toLowerCase()))||null; };
   const colTime=getCol(['timetotal','time_total','finishnetto','nettime','nett_time','net']);
   const colStatus=getCol(['racestatus','race_status','status']);
-  const colAge=getCol(['agegroup','age_class','age','ageclass']);
+  const colAge=getCol(['AgeGroup','age_class','age','ageclass']);
   const colCountry=getCol(['country','nation','countryname']);
   const colCode=getCol(['countrycode','nationcode','code','ioc','alpha3']);
 
