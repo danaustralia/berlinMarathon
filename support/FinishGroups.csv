@@ -1,0 +1,17 @@
+"G (lower bound, seconds)",H (label),I (Label)
+0,DNF,ZZZ
+7200,<2:30,Under 2h30
+9000,2:30–3:00,Under 3h
+10800,3:00–3:30,Under 4h
+12600,3:30–3:45,Under 4h
+13500,3:45–4:00,Under 4h
+14400,4:00–4:15,Under 5h
+15300,4:15–4:30,Under 5h
+16200,4:30–4:45,Under 5h
+17100,4:45–5:00,Under 5h
+18000,5:00–5:15,Under 6h
+18900,5:15–5:30,Under 6h
+19800,5:30–5:45,Under 6h
+20700,5:45–6:00,Under 6h
+21600,6:00–6:15,UOver 6h
+22500,>6:15,UOver 6h

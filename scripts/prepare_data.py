@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SUPPORT = ROOT / "support"
 PUBLIC = ROOT / "public"
 
-FORBIDDEN_PUBLIC_KEYS = {"name", "runnerid", "bibnumber", "bib", "fullname"}
+FORBIDDEN_PUBLIC_KEYS = {"name", "runnerid", "bibnumber", "bib", "fullname", "club", "detailurl"}
 
 BQ_ORDER = ["18-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80+"]
 BQ = {
@@ -70,6 +70,17 @@ def bq_aggregates(finished_rows):
         "byAgeGender": [{"age":br, **by[br]} for br in BQ_ORDER],
         "note": "Hypothetical Boston qualification using the site's 2026 standard table; no registration buffer applied."
     }
+
+
+
+def field(row, *names):
+    """Return the first non-empty value among alternate column names."""
+    for name in names:
+        if name in row:
+            value = row.get(name)
+            if value is not None and str(value).strip() != "":
+                return value
+    return ""
 
 
 def read_csv(path: Path):
@@ -158,7 +169,7 @@ def common_runner_aggregates(rows, country_map):
     finished_rows = [r for r in rows if (r.get("RaceStatus") or "").strip().lower() == "finished"]
     finish_seconds = [parse_duration(r.get("TimeTotal")) for r in finished_rows]
     finish_seconds = [x for x in finish_seconds if x is not None]
-    starts = [parse_clock(r.get("StartTimeNet")) for r in rows]
+    starts = [parse_clock(field(r, "StartTimeNet", "StartTime Net", "StartLine")) for r in rows]
     starts = [x for x in starts if x is not None]
 
     genders = Counter((r.get("Gender") or "Unknown").strip() or "Unknown" for r in rows)
@@ -167,7 +178,7 @@ def common_runner_aggregates(rows, country_map):
     countries = Counter()
     regions = Counter()
     for r in finished_rows:
-        cname, region, code = sanitize_country(r.get("CountryCode"), country_map)
+        cname, region, code = sanitize_country(field(r, "CountryCode", "Country Code"), country_map)
         countries[(code, cname, region)] += 1
         regions[region] += 1
 
@@ -377,6 +388,143 @@ def build_2025(rows, split_rows, weather_rows, country_map):
     }
     return data
 
+def build_2026(rows, country_map):
+    """Build aggregate-only 2026 dashboard data from the de-identified cleaned CSV."""
+    data = common_runner_aggregates(rows, country_map)
+
+    points = [
+        ("5K", 5.0, "5kmTime"),
+        ("10K", 10.0, "10kmTime"),
+        ("15K", 15.0, "15kmTime"),
+        ("20K", 20.0, "20kmTime"),
+        ("Half", 21.0975, "HalbTime"),
+        ("25K", 25.0, "25kmTime"),
+        ("30K", 30.0, "30kmTime"),
+        ("35K", 35.0, "35kmTime"),
+        ("40K", 40.0, "40kmTime"),
+        ("Finish", 42.195, "FinishTime"),
+    ]
+
+    segment_values = defaultdict(list)
+    runner_metrics = []
+
+    for r in rows:
+        if (r.get("RaceStatus") or "").strip().lower() != "finished":
+            continue
+        finish = parse_duration(field(r, "TimeTotal", "FinishTime"))
+        half = parse_duration(field(r, "Halftime", "HalbTime"))
+        if finish is None:
+            continue
+
+        cumulative = {}
+        for label, dist, col in points:
+            t = finish if label == "Finish" else parse_duration(r.get(col))
+            cumulative[label] = t
+
+        prev_label, prev_dist, prev_t = "Start", 0.0, 0
+        for label, dist, col in points:
+            t = cumulative[label]
+            if t is not None and prev_t is not None and t > prev_t and dist > prev_dist:
+                pace = (t - prev_t) / (dist - prev_dist)
+                if 120 <= pace <= 1200:
+                    segment_values[f"{prev_label}-{label}"].append(pace)
+            prev_label, prev_dist, prev_t = label, dist, t
+
+        split_class = None
+        if half and finish > half:
+            second = finish - half
+            split_pct = (second / half - 1) * 100
+            if split_pct < -2:
+                split_class = "Negative >2%"
+            elif split_pct <= 2:
+                split_class = "Even ±2%"
+            else:
+                split_class = "Positive >2%"
+
+        slowdown = None
+        t10, t20, t30, t40 = (cumulative.get("10K"), cumulative.get("20K"), cumulative.get("30K"), cumulative.get("40K"))
+        if all(x is not None for x in (t10, t20, t30, t40)):
+            early = (t20 - t10) / 10
+            late = (t40 - t30) / 10
+            if early > 0 and late > 0:
+                slowdown = (late / early - 1) * 100
+
+        runner_metrics.append({"finish": finish, "splitClass": split_class, "slowdown": slowdown})
+
+    segment_order = [
+        "Start-5K", "5K-10K", "10K-15K", "15K-20K", "20K-Half",
+        "Half-25K", "25K-30K", "30K-35K", "35K-40K", "40K-Finish"
+    ]
+    pacing = []
+    for label in segment_order:
+        vals = segment_values.get(label, [])
+        med = median(vals)
+        pacing.append({"segment": label, "medianPaceSecPerKm": round(med, 1) if med else None, "sample": len(vals)})
+
+    split_counter = Counter(x["splitClass"] for x in runner_metrics if x["splitClass"])
+    split_total = sum(split_counter.values())
+    split_summary = [
+        {"label": label, "count": split_counter.get(label, 0), "pct": pct(split_counter.get(label, 0), split_total)}
+        for label in ("Negative >2%", "Even ±2%", "Positive >2%")
+    ]
+
+    slowdown_vals = [x["slowdown"] for x in runner_metrics if x["slowdown"] is not None and -80 < x["slowdown"] < 300]
+    wall_bins = [
+        ("Faster late", lambda x: x <= 0),
+        ("0–5%", lambda x: 0 < x <= 5),
+        ("5–10%", lambda x: 5 < x <= 10),
+        ("10–20%", lambda x: 10 < x <= 20),
+        ("20%+", lambda x: x > 20),
+    ]
+    wall_summary = []
+    for label, fn in wall_bins:
+        c = sum(fn(x) for x in slowdown_vals)
+        wall_summary.append({"label": label, "count": c, "pct": pct(c, len(slowdown_vals))})
+
+    finish_bands = [
+        ("<3h", 0, 3 * 3600),
+        ("3–3:30", 3 * 3600, int(3.5 * 3600)),
+        ("3:30–4h", int(3.5 * 3600), 4 * 3600),
+        ("4–4:30", 4 * 3600, int(4.5 * 3600)),
+        ("4:30–5h", int(4.5 * 3600), 5 * 3600),
+        ("5h+", 5 * 3600, 100 * 3600),
+    ]
+    slowdown_by_finish = []
+    for label, lo, hi in finish_bands:
+        vals = [x["slowdown"] for x in runner_metrics if lo <= x["finish"] < hi and x["slowdown"] is not None and -80 < x["slowdown"] < 300]
+        slowdown_by_finish.append({"label": label, "medianSlowdownPct": round(median(vals), 1) if vals else None, "sample": len(vals)})
+
+    pace_clean = [x for x in pacing if x["medianPaceSecPerKm"] is not None and x["segment"] != "20K-Half"]
+    wall_segment = None
+    max_delta = -1e9
+    for a, b in zip(pace_clean, pace_clean[1:]):
+        delta = b["medianPaceSecPerKm"] - a["medianPaceSecPerKm"]
+        if delta > max_delta:
+            max_delta = delta
+            wall_segment = b["segment"]
+
+    data["pacing"] = pacing
+    data["splitSummary"] = split_summary
+    data["wallDistribution"] = wall_summary
+    data["slowdownByFinishBand"] = slowdown_by_finish
+    data["weather"] = []
+    data["overview"].update({
+        "medianLateSlowdownPct": round(median(slowdown_vals), 1) if slowdown_vals else None,
+        "negativeSplitPct": next((x["pct"] for x in split_summary if x["label"].startswith("Negative")), 0),
+        "evenSplitPct": next((x["pct"] for x in split_summary if x["label"].startswith("Even")), 0),
+        "positiveSplitPct": next((x["pct"] for x in split_summary if x["label"].startswith("Positive")), 0),
+        "largestSlowdownSegment": wall_segment,
+    })
+    data["meta"] = {
+        "year": 2026,
+        "raceDate": "2026-09-27",
+        "privacy": "Aggregate-only public dataset generated from a de-identified private analysis file.",
+        "splitDefinition": "Negative/positive split categories use a ±2% even-split band.",
+        "slowdownDefinition": "Late slowdown compares average pace from 30–40K with 10–20K.",
+        "note": "2026 source contains finishers only in the supplied export; weather was not included in this build.",
+    }
+    return data
+
 
 def build_2024(rows, country_map):
     data = common_runner_aggregates(rows, country_map)
@@ -418,6 +566,9 @@ def main():
     splits25 = read_csv(SUPPORT / "BM_export_splits_2025.csv")
     weather25 = read_csv(SUPPORT / "WeatherData.csv")
     write_json(2025, build_2025(rows25, splits25, weather25, country_map))
+
+    rows26 = read_csv(SUPPORT / "BM_export_2026.csv")
+    write_json(2026, build_2026(rows26, country_map))
 
     rows24 = read_csv(SUPPORT / "BM_export_2024.csv")
     write_json(2024, build_2024(rows24, country_map))
