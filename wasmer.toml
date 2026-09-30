@@ -1,6 +1,6 @@
 [package]
 name = "danaustralia/berlin-marathon"
-version = "0.1.75"
+version = "0.1.76"
 description = "Berlin Marathon — Data Highlights (static site)"
 
 [dependencies]
