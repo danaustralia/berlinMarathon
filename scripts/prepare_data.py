@@ -102,6 +102,14 @@ def parse_duration(value):
     return h * 3600 + mi * 60 + sec
 
 
+def parse_number(value):
+    try:
+        s = str(value).strip().replace(",", ".")
+        return float(s) if s else None
+    except (TypeError, ValueError):
+        return None
+
+
 def parse_clock(value):
     if value is None:
         return None
@@ -355,6 +363,27 @@ def build_2025(rows, split_rows, weather_rows, country_map):
             max_delta = delta
             wall_segment = b["segment"]
 
+    # Aggregate DNF last-recorded checkpoints for the public story view.
+    # This remains privacy-safe: only checkpoint counts are published.
+    checkpoint_order = ["5K", "10K", "15K", "20K", "Half", "25K", "30K", "35K", "40K"]
+    checkpoint_alias = {"5km":"5K", "10km":"10K", "15km":"15K", "20km":"20K", "halb":"Half", "half":"Half", "25km":"25K", "30km":"30K", "35km":"35K", "40km":"40K"}
+    dnf_checkpoints = Counter()
+    for r in rows:
+        status = (r.get("RaceStatus") or r.get("Status") or "").strip().upper()
+        if status != "DNF":
+            continue
+        raw = (r.get("LastSplit") or "").strip()
+        key = raw.lower().replace(" ", "")
+        label = checkpoint_alias.get(key)
+        if not label:
+            dist = parse_number(r.get("DistanceCompletedKm"))
+            if dist is not None:
+                eligible = [(lab, km) for lab, km in [("5K",5),("10K",10),("15K",15),("20K",20),("Half",21.0975),("25K",25),("30K",30),("35K",35),("40K",40)] if km <= dist + 0.05]
+                label = eligible[-1][0] if eligible else None
+        if label:
+            dnf_checkpoints[label] += 1
+    data["dnfByLastCheckpoint"] = [{"label": x, "count": dnf_checkpoints.get(x, 0)} for x in checkpoint_order if dnf_checkpoints.get(x, 0)]
+
     data["pacing"] = pacing
     data["splitSummary"] = split_summary
     data["wallDistribution"] = wall_summary
@@ -503,6 +532,27 @@ def build_2026(rows, country_map):
             max_delta = delta
             wall_segment = b["segment"]
 
+    # Aggregate DNF last-recorded checkpoints for the public story view.
+    # This remains privacy-safe: only checkpoint counts are published.
+    checkpoint_order = ["5K", "10K", "15K", "20K", "Half", "25K", "30K", "35K", "40K"]
+    checkpoint_alias = {"5km":"5K", "10km":"10K", "15km":"15K", "20km":"20K", "halb":"Half", "half":"Half", "25km":"25K", "30km":"30K", "35km":"35K", "40km":"40K"}
+    dnf_checkpoints = Counter()
+    for r in rows:
+        status = (r.get("RaceStatus") or r.get("Status") or "").strip().upper()
+        if status != "DNF":
+            continue
+        raw = (r.get("LastSplit") or "").strip()
+        key = raw.lower().replace(" ", "")
+        label = checkpoint_alias.get(key)
+        if not label:
+            dist = parse_number(r.get("DistanceCompletedKm"))
+            if dist is not None:
+                eligible = [(lab, km) for lab, km in [("5K",5),("10K",10),("15K",15),("20K",20),("Half",21.0975),("25K",25),("30K",30),("35K",35),("40K",40)] if km <= dist + 0.05]
+                label = eligible[-1][0] if eligible else None
+        if label:
+            dnf_checkpoints[label] += 1
+    data["dnfByLastCheckpoint"] = [{"label": x, "count": dnf_checkpoints.get(x, 0)} for x in checkpoint_order if dnf_checkpoints.get(x, 0)]
+
     data["pacing"] = pacing
     data["splitSummary"] = split_summary
     data["wallDistribution"] = wall_summary
@@ -521,7 +571,7 @@ def build_2026(rows, country_map):
         "privacy": "Aggregate-only public dataset generated from a de-identified private analysis file.",
         "splitDefinition": "Negative/positive split categories use a ±2% even-split band.",
         "slowdownDefinition": "Late slowdown compares average pace from 30–40K with 10–20K.",
-        "note": "2026 source contains finishers only in the supplied export; weather was not included in this build.",
+        "note": "2026 source includes finishers, DNF, DSQ and records with no timing data; weather was not included in this build.",
     }
     return data
 
